@@ -9,13 +9,15 @@ import {
   Menu, 
   X, 
   ChevronDown,
-  Phone
+  Phone,
+  LogOut
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { selectCartCount, toggleCart } from '@/store/slices/cartSlice';
 import { selectWishlistItems } from '@/store/slices/wishlistSlice';
+import { useAuth } from '@/hooks/useAuth';
 import { categories } from '@/data/mockData';
 
 const Header = () => {
@@ -27,6 +29,7 @@ const Header = () => {
   const cartCount = useAppSelector(selectCartCount);
   const wishlistItems = useAppSelector(selectWishlistItems);
   const dispatch = useAppDispatch();
+  const { user, signOut, isAdmin } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -35,6 +38,10 @@ const Header = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
@@ -123,11 +130,53 @@ const Header = () => {
             </Button>
 
             {/* Account */}
-            <Link to="/auth">
-              <Button variant="ghost" size="icon">
-                <User className="h-5 w-5" />
-              </Button>
-            </Link>
+            {user ? (
+              <div className="relative group">
+                <Button variant="ghost" size="icon">
+                  <User className="h-5 w-5" />
+                </Button>
+                <div className="absolute top-full right-0 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                  <div className="bg-card rounded-lg shadow-xl border border-border p-3 min-w-[160px]">
+                    <p className="text-sm text-muted-foreground mb-2 px-2 truncate">
+                      {user.email}
+                    </p>
+                    {isAdmin && (
+                      <Link
+                        to="/admin"
+                        className="block px-2 py-1.5 text-sm text-foreground hover:text-primary hover:bg-muted rounded transition-colors"
+                      >
+                        Admin Panel
+                      </Link>
+                    )}
+                    <Link
+                      to="/dashboard"
+                      className="block px-2 py-1.5 text-sm text-foreground hover:text-primary hover:bg-muted rounded transition-colors"
+                    >
+                      My Orders
+                    </Link>
+                    <Link
+                      to="/profile"
+                      className="block px-2 py-1.5 text-sm text-foreground hover:text-primary hover:bg-muted rounded transition-colors"
+                    >
+                      Profile
+                    </Link>
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-destructive hover:bg-muted rounded transition-colors"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sign Out
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <Link to="/auth">
+                <Button variant="ghost" size="icon">
+                  <User className="h-5 w-5" />
+                </Button>
+              </Link>
+            )}
 
             {/* Mobile Menu Toggle */}
             <Button 
