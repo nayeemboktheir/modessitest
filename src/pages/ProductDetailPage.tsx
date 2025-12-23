@@ -11,12 +11,14 @@ import {
   Shield, 
   RotateCcw,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import ProductCard from '@/components/products/ProductCard';
-import { products } from '@/data/mockData';
+import { fetchProductBySlug, fetchProducts } from '@/services/productService';
+import { Product } from '@/types';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { addToCart, openCart } from '@/store/slices/cartSlice';
 import { toggleWishlist, selectWishlistItems } from '@/store/slices/wishlistSlice';
@@ -26,20 +28,49 @@ const ProductDetailPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   const dispatch = useAppDispatch();
   const wishlistItems = useAppSelector(selectWishlistItems);
 
-  const product = products.find((p) => p.slug === slug);
   const isInWishlist = product ? wishlistItems.some((item) => item.id === product.id) : false;
 
-  const relatedProducts = products
-    .filter((p) => p.category === product?.category && p.id !== product?.id)
-    .slice(0, 4);
-
   useEffect(() => {
+    const loadProduct = async () => {
+      if (!slug) return;
+      setIsLoading(true);
+      try {
+        const [productData, allProducts] = await Promise.all([
+          fetchProductBySlug(slug),
+          fetchProducts(),
+        ]);
+        setProduct(productData);
+        if (productData) {
+          setRelatedProducts(
+            allProducts
+              .filter((p) => p.category === productData.category && p.id !== productData.id)
+              .slice(0, 4)
+          );
+        }
+      } catch (error) {
+        console.error('Failed to load product:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadProduct();
     window.scrollTo(0, 0);
   }, [slug]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen pt-40 pb-16 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!product) {
     return (

@@ -1,13 +1,32 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Filter, X, ChevronDown, Grid3X3, LayoutGrid } from 'lucide-react';
+import { Filter, X, ChevronDown, Grid3X3, LayoutGrid, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import ProductCard from '@/components/products/ProductCard';
-import { products, categories } from '@/data/mockData';
+import { fetchProducts, fetchCategories } from '@/services/productService';
+import { Product, Category } from '@/types';
 
 const ProductsPage = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [prods, cats] = await Promise.all([fetchProducts(), fetchCategories()]);
+        setProducts(prods);
+        setCategories(cats);
+      } catch (error) {
+        console.error('Failed to load products:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, []);
   const [searchParams, setSearchParams] = useSearchParams();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [gridCols, setGridCols] = useState<3 | 4>(4);
@@ -123,6 +142,14 @@ const ProductsPage = () => {
     isFeatured,
     isNew,
   ].filter(Boolean).length;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background pt-40 pb-16 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pt-40 pb-16">

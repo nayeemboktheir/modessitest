@@ -1,12 +1,38 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, Truck, Shield, Headphones, CreditCard } from 'lucide-react';
+import { ArrowRight, Truck, Shield, Headphones, CreditCard, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ProductCard from '@/components/products/ProductCard';
 import CategoryCard from '@/components/products/CategoryCard';
-import { products, categories, featuredProducts, newProducts } from '@/data/mockData';
+import { fetchCategories, fetchFeaturedProducts, fetchNewProducts } from '@/services/productService';
+import { Product, Category } from '@/types';
 
 const HomePage = () => {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [newProducts, setNewProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [cats, featured, newArrivals] = await Promise.all([
+          fetchCategories(),
+          fetchFeaturedProducts(),
+          fetchNewProducts(),
+        ]);
+        setCategories(cats);
+        setFeaturedProducts(featured);
+        setNewProducts(newArrivals);
+      } catch (error) {
+        console.error('Failed to load home page data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, []);
   const features = [
     {
       icon: Truck,
@@ -29,6 +55,14 @@ const HomePage = () => {
       description: '30-day return policy',
     },
   ];
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
