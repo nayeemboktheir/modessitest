@@ -25,6 +25,7 @@ import AdminProducts from '@/pages/admin/AdminProducts';
 import AdminCategories from '@/pages/admin/AdminCategories';
 import AdminOrders from '@/pages/admin/AdminOrders';
 import AdminIncompleteOrders from '@/pages/admin/AdminIncompleteOrders';
+import AdminCourierHistory from '@/pages/admin/AdminCourierHistory';
 import AdminSteadfast from '@/pages/admin/AdminSteadfast';
 import AdminUsers from '@/pages/admin/AdminUsers';
 import AdminInventory from '@/pages/admin/AdminInventory';
@@ -45,6 +46,7 @@ function AppContent() {
           <Route path="/admin/categories" element={<AdminCategories />} />
           <Route path="/admin/orders" element={<AdminOrders />} />
           <Route path="/admin/incomplete-orders" element={<AdminIncompleteOrders />} />
+          <Route path="/admin/courier-history" element={<AdminCourierHistory />} />
           <Route path="/admin/steadfast" element={<AdminSteadfast />} />
           <Route path="/admin/users" element={<AdminUsers />} />
           <Route path="/admin/inventory" element={<AdminInventory />} />

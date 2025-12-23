@@ -32,6 +32,7 @@ import { Search, Eye, Package, Truck, CheckCircle, XCircle, Clock, Send } from '
 import { supabase } from '@/integrations/supabase/client';
 import { getAllOrders, updateOrderStatus } from '@/services/adminService';
 import { format } from 'date-fns';
+import { CourierHistoryDialog } from '@/components/admin/CourierHistoryDialog';
 
 interface OrderItem {
   id: string;
@@ -350,9 +351,15 @@ export default function AdminOrders() {
                   </TableCell>
                   <TableCell className="font-medium">{order.order_number}</TableCell>
                   <TableCell>
-                    <div>
-                      <div>{order.shipping_name}</div>
-                      <div className="text-sm text-muted-foreground">{order.shipping_phone}</div>
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <div>{order.shipping_name}</div>
+                        <div className="text-sm text-muted-foreground">{order.shipping_phone}</div>
+                      </div>
+                      <CourierHistoryDialog 
+                        phone={order.shipping_phone} 
+                        customerName={order.shipping_name}
+                      />
                     </div>
                   </TableCell>
                   <TableCell>{format(new Date(order.created_at), 'MMM dd, yyyy')}</TableCell>
