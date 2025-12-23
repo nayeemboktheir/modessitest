@@ -9,31 +9,31 @@ import { Search, Package, Truck, CheckCircle, XCircle, AlertTriangle, Loader2 } 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-interface CourierData {
+interface CourierStats {
+  name?: string;
+  logo?: string;
   total_parcel?: number;
   success_parcel?: number;
-  cancel_parcel?: number;
+  cancelled_parcel?: number;
   success_ratio?: number;
-  pathao?: {
-    total_parcel?: number;
-    success_parcel?: number;
-    cancel_parcel?: number;
+}
+
+interface CourierData {
+  status?: string;
+  courierData?: {
+    pathao?: CourierStats;
+    steadfast?: CourierStats;
+    redx?: CourierStats;
+    paperfly?: CourierStats;
+    parceldex?: CourierStats;
+    summary?: {
+      total_parcel?: number;
+      success_parcel?: number;
+      cancelled_parcel?: number;
+      success_ratio?: number;
+    };
   };
-  steadfast?: {
-    total_parcel?: number;
-    success_parcel?: number;
-    cancel_parcel?: number;
-  };
-  redx?: {
-    total_parcel?: number;
-    success_parcel?: number;
-    cancel_parcel?: number;
-  };
-  paperfly?: {
-    total_parcel?: number;
-    success_parcel?: number;
-    cancel_parcel?: number;
-  };
+  reports?: unknown[];
 }
 
 export default function AdminCourierHistory() {
@@ -58,6 +58,8 @@ export default function AdminCourierHistory() {
         body: { phone: phone.trim() }
       });
 
+      console.log('Courier history response:', response);
+
       if (fetchError) {
         throw new Error(fetchError.message);
       }
@@ -66,6 +68,7 @@ export default function AdminCourierHistory() {
         throw new Error(response.error);
       }
 
+      // The response structure is { success: true, data: { status, courierData, reports } }
       setData(response?.data || {});
     } catch (err) {
       console.error('Failed to fetch courier history:', err);
@@ -84,7 +87,7 @@ export default function AdminCourierHistory() {
     return { level: 'High Risk', color: 'destructive', icon: XCircle };
   };
 
-  const CourierStats = ({ name, stats }: { name: string; stats?: { total_parcel?: number; success_parcel?: number; cancel_parcel?: number } }) => {
+  const CourierStatsCard = ({ name, stats }: { name: string; stats?: CourierStats }) => {
     if (!stats || stats.total_parcel === 0) return null;
     
     const successRate = stats.total_parcel ? Math.round((stats.success_parcel || 0) / stats.total_parcel * 100) : 0;
@@ -108,7 +111,7 @@ export default function AdminCourierHistory() {
               <div className="text-xs text-muted-foreground">Delivered</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-red-600">{stats.cancel_parcel || 0}</div>
+              <div className="text-2xl font-bold text-red-600">{stats.cancelled_parcel || 0}</div>
               <div className="text-xs text-muted-foreground">Cancelled</div>
             </div>
             <div>
@@ -121,7 +124,9 @@ export default function AdminCourierHistory() {
     );
   };
 
-  const risk = getRiskLevel(data?.success_ratio);
+  const summary = data?.courierData?.summary;
+  const courierData = data?.courierData;
+  const risk = getRiskLevel(summary?.success_ratio);
   const RiskIcon = risk.icon;
 
   return (
@@ -211,19 +216,19 @@ export default function AdminCourierHistory() {
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
                 <div className="p-4 bg-muted rounded-lg">
-                  <div className="text-3xl font-bold">{data.total_parcel || 0}</div>
+                  <div className="text-3xl font-bold">{summary?.total_parcel || 0}</div>
                   <div className="text-sm text-muted-foreground">Total Parcels</div>
                 </div>
                 <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg">
-                  <div className="text-3xl font-bold text-green-600">{data.success_parcel || 0}</div>
+                  <div className="text-3xl font-bold text-green-600">{summary?.success_parcel || 0}</div>
                   <div className="text-sm text-muted-foreground">Delivered</div>
                 </div>
                 <div className="p-4 bg-red-50 dark:bg-red-950 rounded-lg">
-                  <div className="text-3xl font-bold text-red-600">{data.cancel_parcel || 0}</div>
+                  <div className="text-3xl font-bold text-red-600">{summary?.cancelled_parcel || 0}</div>
                   <div className="text-sm text-muted-foreground">Cancelled</div>
                 </div>
                 <div className="p-4 bg-primary/10 rounded-lg">
-                  <div className="text-3xl font-bold text-primary">{data.success_ratio || 0}%</div>
+                  <div className="text-3xl font-bold text-primary">{summary?.success_ratio?.toFixed(1) || 0}%</div>
                   <div className="text-sm text-muted-foreground">Success Rate</div>
                 </div>
               </div>
@@ -234,12 +239,12 @@ export default function AdminCourierHistory() {
           <div>
             <h3 className="text-lg font-medium mb-4">Breakdown by Courier</h3>
             <div className="grid gap-4 md:grid-cols-2">
-              <CourierStats name="Steadfast" stats={data.steadfast} />
-              <CourierStats name="Pathao" stats={data.pathao} />
-              <CourierStats name="RedX" stats={data.redx} />
-              <CourierStats name="Paperfly" stats={data.paperfly} />
+              <CourierStatsCard name="Steadfast" stats={courierData?.steadfast} />
+              <CourierStatsCard name="Pathao" stats={courierData?.pathao} />
+              <CourierStatsCard name="RedX" stats={courierData?.redx} />
+              <CourierStatsCard name="Paperfly" stats={courierData?.paperfly} />
             </div>
-            {!data.steadfast?.total_parcel && !data.pathao?.total_parcel && !data.redx?.total_parcel && !data.paperfly?.total_parcel && (
+            {!courierData?.steadfast?.total_parcel && !courierData?.pathao?.total_parcel && !courierData?.redx?.total_parcel && !courierData?.paperfly?.total_parcel && (
               <Card>
                 <CardContent className="py-12 text-center">
                   <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
