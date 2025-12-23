@@ -365,10 +365,17 @@ export default function AdminOrders() {
                   <TableCell>{getStatusBadge(order.status)}</TableCell>
                   <TableCell>
                     {order.tracking_number ? (
-                      <Badge variant="secondary" className="gap-1">
-                        <Truck className="h-3 w-3" />
-                        {order.tracking_number}
-                      </Badge>
+                      <a 
+                        href={`https://steadfast.com.bd/t/${order.tracking_number}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex"
+                      >
+                        <Badge variant="secondary" className="gap-1 cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors">
+                          <Truck className="h-3 w-3" />
+                          {order.tracking_number}
+                        </Badge>
+                      </a>
                     ) : (
                       <span className="text-muted-foreground text-sm">Not sent</span>
                     )}
