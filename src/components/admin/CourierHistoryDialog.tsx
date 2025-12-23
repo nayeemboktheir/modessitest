@@ -13,32 +13,32 @@ import { History, Loader2, Package, XCircle, CheckCircle, AlertTriangle, Truck }
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-interface CourierData {
+type CourierStats = {
+  name?: string;
+  logo?: string;
   total_parcel?: number;
   success_parcel?: number;
-  cancel_parcel?: number;
+  cancelled_parcel?: number;
   success_ratio?: number;
-  pathao?: {
-    total_parcel?: number;
-    success_parcel?: number;
-    cancel_parcel?: number;
+};
+
+type CourierHistoryData = {
+  status?: string;
+  courierData?: {
+    pathao?: CourierStats;
+    steadfast?: CourierStats;
+    redx?: CourierStats;
+    paperfly?: CourierStats;
+    parceldex?: CourierStats;
+    summary?: {
+      total_parcel?: number;
+      success_parcel?: number;
+      cancelled_parcel?: number;
+      success_ratio?: number;
+    };
   };
-  steadfast?: {
-    total_parcel?: number;
-    success_parcel?: number;
-    cancel_parcel?: number;
-  };
-  redx?: {
-    total_parcel?: number;
-    success_parcel?: number;
-    cancel_parcel?: number;
-  };
-  paperfly?: {
-    total_parcel?: number;
-    success_parcel?: number;
-    cancel_parcel?: number;
-  };
-}
+  reports?: unknown[];
+};
 
 interface CourierHistoryDialogProps {
   phone: string;
@@ -47,19 +47,19 @@ interface CourierHistoryDialogProps {
 
 export function CourierHistoryDialog({ phone, customerName }: CourierHistoryDialogProps) {
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<CourierData | null>(null);
+  const [data, setData] = useState<CourierHistoryData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
   const fetchCourierHistory = async () => {
     if (data) return; // Already fetched
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
-      const { data: response, error: fetchError } = await supabase.functions.invoke('courier-history', {
-        body: { phone }
+      const { data: response, error: fetchError } = await supabase.functions.invoke("courier-history", {
+        body: { phone },
       });
 
       if (fetchError) {
@@ -70,10 +70,11 @@ export function CourierHistoryDialog({ phone, customerName }: CourierHistoryDial
         throw new Error(response.error);
       }
 
+      // The function returns: { success: true, data: { status, courierData, reports } }
       setData(response?.data || {});
     } catch (err) {
-      console.error('Failed to fetch courier history:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch courier history';
+      console.error("Failed to fetch courier history:", err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to fetch courier history";
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -89,15 +90,15 @@ export function CourierHistoryDialog({ phone, customerName }: CourierHistoryDial
   };
 
   const getRiskLevel = (successRatio: number | undefined) => {
-    if (successRatio === undefined) return { level: 'unknown', color: 'secondary', icon: AlertTriangle };
-    if (successRatio >= 80) return { level: 'Low Risk', color: 'default', icon: CheckCircle };
-    if (successRatio >= 50) return { level: 'Medium Risk', color: 'secondary', icon: AlertTriangle };
-    return { level: 'High Risk', color: 'destructive', icon: XCircle };
+    if (successRatio === undefined) return { level: "Unknown", color: "secondary", icon: AlertTriangle };
+    if (successRatio >= 80) return { level: "Low Risk", color: "default", icon: CheckCircle };
+    if (successRatio >= 50) return { level: "Medium Risk", color: "secondary", icon: AlertTriangle };
+    return { level: "High Risk", color: "destructive", icon: XCircle };
   };
 
-  const CourierStats = ({ name, stats }: { name: string; stats?: { total_parcel?: number; success_parcel?: number; cancel_parcel?: number } }) => {
+  const CourierStatsRow = ({ name, stats }: { name: string; stats?: CourierStats }) => {
     if (!stats || stats.total_parcel === 0) return null;
-    
+
     return (
       <div className="p-3 bg-muted/50 rounded-lg">
         <div className="flex items-center gap-2 mb-2">
@@ -114,7 +115,7 @@ export function CourierHistoryDialog({ phone, customerName }: CourierHistoryDial
             <div className="text-muted-foreground text-xs">Success</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-semibold text-red-600">{stats.cancel_parcel || 0}</div>
+            <div className="text-lg font-semibold text-red-600">{stats.cancelled_parcel || 0}</div>
             <div className="text-muted-foreground text-xs">Cancelled</div>
           </div>
         </div>
@@ -122,7 +123,8 @@ export function CourierHistoryDialog({ phone, customerName }: CourierHistoryDial
     );
   };
 
-  const risk = getRiskLevel(data?.success_ratio);
+  const summary = data?.courierData?.summary;
+  const risk = getRiskLevel(summary?.success_ratio);
   const RiskIcon = risk.icon;
 
   return (
@@ -174,19 +176,19 @@ export function CourierHistoryDialog({ phone, customerName }: CourierHistoryDial
                 </div>
                 <div className="grid grid-cols-4 gap-2 text-center">
                   <div>
-                    <div className="text-2xl font-bold">{data.total_parcel || 0}</div>
+                    <div className="text-2xl font-bold">{summary?.total_parcel || 0}</div>
                     <div className="text-xs text-muted-foreground">Total</div>
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-green-600">{data.success_parcel || 0}</div>
+                    <div className="text-2xl font-bold text-green-600">{summary?.success_parcel || 0}</div>
                     <div className="text-xs text-muted-foreground">Success</div>
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-red-600">{data.cancel_parcel || 0}</div>
+                    <div className="text-2xl font-bold text-red-600">{summary?.cancelled_parcel || 0}</div>
                     <div className="text-xs text-muted-foreground">Cancel</div>
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-primary">{data.success_ratio || 0}%</div>
+                    <div className="text-2xl font-bold text-primary">{summary?.success_ratio?.toFixed(1) || 0}%</div>
                     <div className="text-xs text-muted-foreground">Ratio</div>
                   </div>
                 </div>
@@ -196,16 +198,17 @@ export function CourierHistoryDialog({ phone, customerName }: CourierHistoryDial
               <div className="space-y-2">
                 <h4 className="text-sm font-medium text-muted-foreground">Breakdown by Courier</h4>
                 <div className="grid gap-2">
-                  <CourierStats name="Steadfast" stats={data.steadfast} />
-                  <CourierStats name="Pathao" stats={data.pathao} />
-                  <CourierStats name="RedX" stats={data.redx} />
-                  <CourierStats name="Paperfly" stats={data.paperfly} />
+                  <CourierStatsRow name="Steadfast" stats={data.courierData?.steadfast} />
+                  <CourierStatsRow name="Pathao" stats={data.courierData?.pathao} />
+                  <CourierStatsRow name="RedX" stats={data.courierData?.redx} />
+                  <CourierStatsRow name="Paperfly" stats={data.courierData?.paperfly} />
                 </div>
-                {!data.steadfast?.total_parcel && !data.pathao?.total_parcel && !data.redx?.total_parcel && !data.paperfly?.total_parcel && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No courier history found for this phone number
-                  </p>
-                )}
+                {!data.courierData?.steadfast?.total_parcel &&
+                  !data.courierData?.pathao?.total_parcel &&
+                  !data.courierData?.redx?.total_parcel &&
+                  !data.courierData?.paperfly?.total_parcel && (
+                    <p className="text-sm text-muted-foreground text-center py-4">No courier history found for this phone number</p>
+                  )}
               </div>
             </>
           )}
