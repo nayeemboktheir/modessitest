@@ -13,7 +13,8 @@ import {
   ChevronRight,
   Menu,
   Truck,
-  History
+  History,
+  Settings
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
@@ -43,6 +44,7 @@ const adminNavItems = [
   { title: 'Users', url: '/admin/users', icon: Users },
   { title: 'Inventory', url: '/admin/inventory', icon: Boxes },
   { title: 'Banners', url: '/admin/banners', icon: Image },
+  { title: 'Shop Settings', url: '/admin/shop-settings', icon: Settings },
 ];
 
 function AdminSidebar() {

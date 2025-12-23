@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import {
   Dialog,
@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Printer } from 'lucide-react';
 import { OrderInvoice } from './OrderInvoice';
+import { supabase } from '@/integrations/supabase/client';
 
 interface OrderItem {
   id: string;
@@ -44,43 +45,77 @@ interface InvoicePrintDialogProps {
   orders: Order[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  shopName?: string;
-  shopLogo?: string;
 }
 
 export function InvoicePrintDialog({
   orders,
   open,
   onOpenChange,
-  shopName = 'Your Shop',
-  shopLogo,
 }: InvoicePrintDialogProps) {
   const printRef = useRef<HTMLDivElement>(null);
+  const [shopName, setShopName] = useState('Your Shop');
+  const [shopLogo, setShopLogo] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      loadShopSettings();
+    }
+  }, [open]);
+
+  const loadShopSettings = async () => {
+    try {
+      const { data } = await supabase
+        .from('admin_settings')
+        .select('key, value')
+        .in('key', ['shop_name', 'shop_logo_url']);
+
+      data?.forEach((setting) => {
+        if (setting.key === 'shop_name') setShopName(setting.value);
+        if (setting.key === 'shop_logo_url') setShopLogo(setting.value);
+      });
+    } catch (error) {
+      console.error('Failed to load shop settings:', error);
+    }
+  };
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: `Invoices-${new Date().toISOString().split('T')[0]}`,
+    pageStyle: `
+      @page {
+        size: A4;
+        margin: 0;
+      }
+      @media print {
+        html, body {
+          height: 100%;
+          margin: 0 !important;
+          padding: 0 !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+      }
+    `,
   });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span>Print Invoices ({orders.length})</span>
             <Button onClick={() => handlePrint()} className="gap-2">
               <Printer className="h-4 w-4" />
-              Print All
+              Print All (A4)
             </Button>
           </DialogTitle>
         </DialogHeader>
 
         <div className="border rounded-lg overflow-hidden bg-gray-100 p-4">
-          <div ref={printRef} className="space-y-0">
+          <div ref={printRef}>
             {orders.map((order, index) => (
               <div
                 key={order.id}
-                className="bg-white"
                 style={{
                   pageBreakAfter: index < orders.length - 1 ? 'always' : 'auto',
                   pageBreakInside: 'avoid',

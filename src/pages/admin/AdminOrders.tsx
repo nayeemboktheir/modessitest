@@ -543,7 +543,6 @@ export default function AdminOrders() {
         orders={orders.filter((o) => selectedOrderIds.has(o.id))}
         open={isInvoiceDialogOpen}
         onOpenChange={setIsInvoiceDialogOpen}
-        shopName="Your Shop"
       />
     </div>
   );
