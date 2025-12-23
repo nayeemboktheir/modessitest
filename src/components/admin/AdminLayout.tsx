@@ -15,7 +15,8 @@ import {
   Truck,
   History,
   Settings,
-  Megaphone
+  Megaphone,
+  MessageSquare
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
@@ -46,6 +47,7 @@ const adminNavItems = [
   { title: 'Inventory', url: '/admin/inventory', icon: Boxes },
   { title: 'Banners', url: '/admin/banners', icon: Image },
   { title: 'Marketing', url: '/admin/marketing', icon: Megaphone },
+  { title: 'SMS', url: '/admin/sms', icon: MessageSquare },
   { title: 'Shop Settings', url: '/admin/shop-settings', icon: Settings },
 ];
 
