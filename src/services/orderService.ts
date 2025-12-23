@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Order, CartItem } from '@/types';
 
 interface CreateOrderData {
-  userId: string;
+  userId: string | null;
   items: CartItem[];
   shippingAddress: {
     name: string;

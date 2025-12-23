@@ -72,10 +72,8 @@ const CheckoutPage = () => {
           district: addresses.district,
           postalCode: addresses.postal_code || '',
         });
-      }
-      
-      // Load profile info if no default address
-      if (!addresses) {
+      } else {
+        // Load profile info if no default address
         const { data: profile } = await supabase
           .from('profiles')
           .select('full_name, phone')
@@ -94,18 +92,6 @@ const CheckoutPage = () => {
     
     loadUserAddress();
   }, [user]);
-
-  // Redirect to auth if not logged in
-  useEffect(() => {
-    if (!authLoading && !user) {
-      toast({
-        title: "Please log in",
-        description: "You need to be logged in to checkout",
-        variant: "destructive",
-      });
-      navigate('/auth', { state: { from: '/checkout' } });
-    }
-  }, [user, authLoading, navigate, toast]);
 
   // Redirect to cart if empty
   useEffect(() => {
@@ -150,18 +136,13 @@ const CheckoutPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user) {
-      toast({ title: "Please log in", variant: "destructive" });
-      return;
-    }
-    
     if (!validateForm()) return;
     
     setIsSubmitting(true);
     
     try {
       const order = await createOrder({
-        userId: user.id,
+        userId: user?.id || null,
         items: cartItems,
         shippingAddress: shippingForm,
         paymentMethod,
@@ -216,9 +197,11 @@ const CheckoutPage = () => {
               <Button onClick={() => navigate('/')} variant="outline">
                 Continue Shopping
               </Button>
-              <Button onClick={() => navigate('/orders')} className="gradient-hero">
-                View Orders
-              </Button>
+              {user && (
+                <Button onClick={() => navigate('/orders')} className="gradient-hero">
+                  View Orders
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -236,6 +219,15 @@ const CheckoutPage = () => {
             Back to Cart
           </Link>
           <h1 className="font-display text-3xl font-bold text-foreground">Checkout</h1>
+          {!user && (
+            <p className="text-muted-foreground mt-2">
+              Checking out as guest.{' '}
+              <Link to="/auth" className="text-primary hover:underline">
+                Sign in
+              </Link>{' '}
+              to track your orders.
+            </p>
+          )}
         </div>
 
         <form onSubmit={handleSubmit}>
