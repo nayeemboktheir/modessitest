@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.steadfast-courier]
 verify_jwt = false
+
+[functions.courier-history]
+verify_jwt = false
