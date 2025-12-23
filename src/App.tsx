@@ -30,6 +30,7 @@ import AdminSteadfast from '@/pages/admin/AdminSteadfast';
 import AdminUsers from '@/pages/admin/AdminUsers';
 import AdminInventory from '@/pages/admin/AdminInventory';
 import AdminBanners from '@/pages/admin/AdminBanners';
+import AdminShopSettings from '@/pages/admin/AdminShopSettings';
 
 const queryClient = new QueryClient();
 
@@ -51,6 +52,7 @@ function AppContent() {
           <Route path="/admin/users" element={<AdminUsers />} />
           <Route path="/admin/inventory" element={<AdminInventory />} />
           <Route path="/admin/banners" element={<AdminBanners />} />
+          <Route path="/admin/shop-settings" element={<AdminShopSettings />} />
         </Routes>
       </AdminLayout>
     );

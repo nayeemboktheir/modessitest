@@ -1,7 +1,6 @@
-import { forwardRef } from 'react';
+import { forwardRef, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import JsBarcode from 'jsbarcode';
-import { useEffect, useRef } from 'react';
 
 interface OrderItem {
   id: string;
@@ -36,7 +35,7 @@ interface Order {
 interface OrderInvoiceProps {
   order: Order;
   shopName?: string;
-  shopLogo?: string;
+  shopLogo?: string | null;
 }
 
 const Barcode = ({ value }: { value: string }) => {
@@ -68,31 +67,41 @@ export const OrderInvoice = forwardRef<HTMLDivElement, OrderInvoiceProps>(
     return (
       <div
         ref={ref}
-        className="bg-white text-black p-8 max-w-[800px] mx-auto"
-        style={{ fontFamily: 'Arial, sans-serif', fontSize: '14px' }}
+        className="bg-white text-black"
+        style={{
+          fontFamily: 'Arial, sans-serif',
+          fontSize: '12px',
+          width: '210mm',
+          minHeight: '297mm',
+          padding: '15mm 20mm',
+          boxSizing: 'border-box',
+        }}
       >
         {/* Header */}
         <div className="flex justify-between items-start mb-8">
           {/* Logo Section */}
           <div className="flex-1">
             {shopLogo ? (
-              <img src={shopLogo} alt={shopName} className="h-16 object-contain" />
+              <img src={shopLogo} alt={shopName} style={{ height: '60px', objectFit: 'contain' }} />
             ) : (
               <h1
-                className="text-4xl font-bold"
-                style={{ fontFamily: 'Georgia, serif' }}
+                style={{
+                  fontSize: '32px',
+                  fontWeight: 'bold',
+                  fontFamily: 'Georgia, serif',
+                  margin: 0,
+                }}
               >
                 {shopName}
               </h1>
             )}
-            <p className="text-red-600 text-sm mt-1">Logo</p>
           </div>
 
           {/* Invoice Title & Barcode */}
-          <div className="text-right">
-            <h2 className="text-xl font-bold mb-2">INVOICE</h2>
+          <div style={{ textAlign: 'right' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>INVOICE</h2>
             {order.tracking_number && (
-              <div className="inline-block">
+              <div style={{ display: 'inline-block' }}>
                 <Barcode value={order.tracking_number} />
               </div>
             )}
@@ -100,74 +109,88 @@ export const OrderInvoice = forwardRef<HTMLDivElement, OrderInvoiceProps>(
         </div>
 
         {/* Billing & Shipping Info */}
-        <div className="grid grid-cols-3 gap-8 mb-6 text-sm">
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr 1fr',
+            gap: '24px',
+            marginBottom: '24px',
+            fontSize: '11px',
+          }}
+        >
           {/* Billing To */}
           <div>
-            <h3 className="font-bold mb-2">Billing To</h3>
-            <p className="text-red-600">{order.shipping_name}</p>
-            <p className="text-red-600">{order.shipping_phone}</p>
-            <p className="text-red-600">
+            <h3 style={{ fontWeight: 'bold', marginBottom: '8px' }}>Billing To</h3>
+            <p style={{ color: '#c53030', margin: '2px 0' }}>{order.shipping_name}</p>
+            <p style={{ color: '#c53030', margin: '2px 0' }}>{order.shipping_phone}</p>
+            <p style={{ color: '#c53030', margin: '2px 0' }}>
               {order.shipping_street}, {order.shipping_district}, {order.shipping_city}
             </p>
           </div>
 
           {/* Invoice Details */}
           <div>
-            <p>
-              <span className="font-medium">Invoice No:</span> {order.order_number.replace('ORD-', 'M')}
+            <p style={{ margin: '2px 0' }}>
+              <span style={{ fontWeight: '500' }}>Invoice No:</span> {order.order_number.replace('ORD-', 'M')}
             </p>
-            <p>
-              <span className="font-medium">Invoice Date:</span>{' '}
+            <p style={{ margin: '2px 0' }}>
+              <span style={{ fontWeight: '500' }}>Invoice Date:</span>{' '}
               {format(new Date(order.created_at), 'dd/MM/yy')}
             </p>
-            <p>
-              <span className="font-medium">Total Items:</span> {totalItems}
+            <p style={{ margin: '2px 0' }}>
+              <span style={{ fontWeight: '500' }}>Total Items:</span> {totalItems}
             </p>
           </div>
 
           {/* Delivery Info */}
           <div>
-            <p>
-              <span className="font-medium">Delivery:</span> Steadfast
+            <p style={{ margin: '2px 0' }}>
+              <span style={{ fontWeight: '500' }}>Delivery:</span> Steadfast
             </p>
-            <p>
-              <span className="font-medium">Tracking:</span>{' '}
+            <p style={{ margin: '2px 0' }}>
+              <span style={{ fontWeight: '500' }}>Tracking:</span>{' '}
               {order.tracking_number || 'Pending'}
             </p>
           </div>
         </div>
 
         {/* Products Table */}
-        <table className="w-full border-collapse mb-6">
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '24px' }}>
           <thead>
-            <tr className="border-y border-black">
-              <th className="text-left py-2 px-2">PRODUCTS</th>
-              <th className="text-center py-2 px-2">QTY</th>
-              <th className="text-center py-2 px-2">PRICE</th>
-              <th className="text-right py-2 px-2">AMOUNT</th>
+            <tr style={{ borderTop: '1px solid #000', borderBottom: '1px solid #000' }}>
+              <th style={{ textAlign: 'left', padding: '8px 4px', fontSize: '11px' }}>PRODUCTS</th>
+              <th style={{ textAlign: 'center', padding: '8px 4px', fontSize: '11px' }}>QTY</th>
+              <th style={{ textAlign: 'center', padding: '8px 4px', fontSize: '11px' }}>PRICE</th>
+              <th style={{ textAlign: 'right', padding: '8px 4px', fontSize: '11px' }}>AMOUNT</th>
             </tr>
           </thead>
           <tbody>
             {order.order_items.map((item) => (
-              <tr key={item.id} className="border-b border-gray-200">
-                <td className="py-3 px-2">
-                  <div className="flex items-center gap-3">
+              <tr key={item.id} style={{ borderBottom: '1px solid #e5e5e5' }}>
+                <td style={{ padding: '10px 4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     {item.product_image && (
                       <img
                         src={item.product_image}
                         alt={item.product_name}
-                        className="w-10 h-10 object-cover"
+                        style={{ width: '40px', height: '40px', objectFit: 'cover' }}
                       />
                     )}
                     <div>
-                      <p className="font-medium">{item.product_name}</p>
-                      <p className="text-red-600 text-sm">৳{Number(item.price).toFixed(0)}</p>
+                      <p style={{ fontWeight: '500', margin: 0 }}>{item.product_name}</p>
+                      <p style={{ color: '#c53030', fontSize: '10px', margin: '2px 0 0 0' }}>
+                        ৳{Number(item.price).toFixed(0)}
+                      </p>
                     </div>
                   </div>
                 </td>
-                <td className="text-center py-3 px-2 text-red-600">{item.quantity}</td>
-                <td className="text-center py-3 px-2 text-red-600">৳{Number(item.price).toFixed(0)}</td>
-                <td className="text-right py-3 px-2">
+                <td style={{ textAlign: 'center', padding: '10px 4px', color: '#c53030' }}>
+                  {item.quantity}
+                </td>
+                <td style={{ textAlign: 'center', padding: '10px 4px', color: '#c53030' }}>
+                  ৳{Number(item.price).toFixed(0)}
+                </td>
+                <td style={{ textAlign: 'right', padding: '10px 4px' }}>
                   ৳{(Number(item.price) * item.quantity).toFixed(0)}
                 </td>
               </tr>
@@ -176,29 +199,38 @@ export const OrderInvoice = forwardRef<HTMLDivElement, OrderInvoiceProps>(
         </table>
 
         {/* Notes & Totals */}
-        <div className="flex justify-between">
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           {/* Notes */}
-          <div className="text-red-600">
+          <div style={{ color: '#c53030', fontSize: '11px' }}>
             {order.notes && <p>Note: {order.notes}</p>}
           </div>
 
           {/* Totals */}
-          <div className="text-right space-y-1 min-w-[200px]">
-            <div className="flex justify-between">
+          <div style={{ textAlign: 'right', minWidth: '180px', fontSize: '11px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
               <span>Sub Total</span>
               <span>৳{Number(order.subtotal).toFixed(0)}</span>
             </div>
-            <div className="flex justify-between">
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
               <span>Delivery Charge</span>
-              <span className="text-red-600">৳{Number(order.shipping_cost || 0).toFixed(0)}</span>
+              <span style={{ color: '#c53030' }}>৳{Number(order.shipping_cost || 0).toFixed(0)}</span>
             </div>
             {order.discount && Number(order.discount) > 0 && (
-              <div className="flex justify-between text-green-600">
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', color: '#16a34a' }}>
                 <span>Discount</span>
                 <span>-৳{Number(order.discount).toFixed(0)}</span>
               </div>
             )}
-            <div className="flex justify-between font-bold border-t border-black pt-1">
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontWeight: 'bold',
+                borderTop: '1px solid #000',
+                paddingTop: '4px',
+                marginTop: '4px',
+              }}
+            >
               <span>Total:</span>
               <span>৳{Number(order.total).toFixed(0)}</span>
             </div>
