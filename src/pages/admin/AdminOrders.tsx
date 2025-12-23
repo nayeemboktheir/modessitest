@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Search, Eye, Package, Truck, CheckCircle, XCircle, Clock, Send } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -80,6 +81,8 @@ export default function AdminOrders() {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [updating, setUpdating] = useState(false);
   const [sendingToSteadfast, setSendingToSteadfast] = useState(false);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
+  const [bulkSending, setBulkSending] = useState(false);
 
   useEffect(() => {
     loadOrders();
@@ -167,6 +170,78 @@ export default function AdminOrders() {
     }
   };
 
+  const toggleOrderSelection = (orderId: string) => {
+    const newSelected = new Set(selectedOrderIds);
+    if (newSelected.has(orderId)) {
+      newSelected.delete(orderId);
+    } else {
+      newSelected.add(orderId);
+    }
+    setSelectedOrderIds(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedOrderIds.size === filteredOrders.filter(o => !o.tracking_number).length) {
+      setSelectedOrderIds(new Set());
+    } else {
+      setSelectedOrderIds(new Set(filteredOrders.filter(o => !o.tracking_number).map(o => o.id)));
+    }
+  };
+
+  const handleBulkSendToSteadfast = async () => {
+    if (selectedOrderIds.size === 0) {
+      toast.error('Please select orders to send');
+      return;
+    }
+
+    setBulkSending(true);
+    try {
+      const ordersToSend = orders.filter(o => selectedOrderIds.has(o.id));
+      
+      const orderPayloads = ordersToSend.map(order => {
+        const fullAddress = `${order.shipping_street}, ${order.shipping_district}, ${order.shipping_city}${order.shipping_postal_code ? `, ${order.shipping_postal_code}` : ''}`;
+        return {
+          orderId: order.id,
+          invoice: order.order_number,
+          recipient_name: order.shipping_name,
+          recipient_phone: order.shipping_phone,
+          recipient_address: fullAddress,
+          cod_amount: order.payment_method === 'cod' ? Number(order.total) : 0,
+          note: order.notes || `Order items: ${order.order_items.map(i => `${i.product_name} x${i.quantity}`).join(', ')}`,
+        };
+      });
+
+      const { data, error } = await supabase.functions.invoke('steadfast-courier', {
+        body: { orders: orderPayloads },
+      });
+
+      if (error) {
+        console.error('Bulk Steadfast error:', error);
+        toast.error(error.message || 'Failed to send orders to Steadfast');
+        return;
+      }
+
+      if (data?.results) {
+        const successCount = data.results.filter((r: { success: boolean }) => r.success).length;
+        const failCount = data.results.filter((r: { success: boolean }) => !r.success).length;
+        
+        if (failCount > 0) {
+          toast.warning(`Sent ${successCount} orders, ${failCount} failed`);
+        } else {
+          toast.success(`Successfully sent ${successCount} orders to Steadfast`);
+        }
+      }
+
+      setSelectedOrderIds(new Set());
+      loadOrders();
+    } catch (error) {
+      console.error('Failed to bulk send to Steadfast:', error);
+      toast.error('Failed to send orders to Steadfast');
+    } finally {
+      setBulkSending(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const statusOption = statusOptions.find(s => s.value === status);
     if (!statusOption) return <Badge>{status}</Badge>;
@@ -216,37 +291,63 @@ export default function AdminOrders() {
                 className="max-w-sm"
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Filter status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                {statusOptions.map((status) => (
-                  <SelectItem key={status.value} value={status.value}>
-                    {status.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2">
+              {selectedOrderIds.size > 0 && (
+                <Button
+                  onClick={handleBulkSendToSteadfast}
+                  disabled={bulkSending}
+                  className="gap-2"
+                >
+                  <Send className="h-4 w-4" />
+                  {bulkSending ? 'Sending...' : `Send ${selectedOrderIds.size} to Steadfast`}
+                </Button>
+              )}
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Filter status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  {statusOptions.map((status) => (
+                    <SelectItem key={status.value} value={status.value}>
+                      {status.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={selectedOrderIds.size > 0 && selectedOrderIds.size === filteredOrders.filter(o => !o.tracking_number).length}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
                 <TableHead>Order</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>Payment</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Tracking</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredOrders.map((order) => (
                 <TableRow key={order.id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedOrderIds.has(order.id)}
+                      onCheckedChange={() => toggleOrderSelection(order.id)}
+                      disabled={!!order.tracking_number}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">{order.order_number}</TableCell>
                   <TableCell>
                     <div>
@@ -262,6 +363,16 @@ export default function AdminOrders() {
                     </Badge>
                   </TableCell>
                   <TableCell>{getStatusBadge(order.status)}</TableCell>
+                  <TableCell>
+                    {order.tracking_number ? (
+                      <Badge variant="secondary" className="gap-1">
+                        <Truck className="h-3 w-3" />
+                        {order.tracking_number}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">Not sent</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right">
                     <Button
                       variant="ghost"
@@ -275,7 +386,7 @@ export default function AdminOrders() {
               ))}
               {filteredOrders.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                     No orders found
                   </TableCell>
                 </TableRow>

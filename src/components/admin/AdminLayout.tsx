@@ -11,7 +11,8 @@ import {
   Image,
   LogOut,
   ChevronRight,
-  Menu
+  Menu,
+  Truck
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import {
@@ -36,6 +37,7 @@ const adminNavItems = [
   { title: 'Categories', url: '/admin/categories', icon: FolderTree },
   { title: 'Orders', url: '/admin/orders', icon: ShoppingCart },
   { title: 'Incomplete Orders', url: '/admin/incomplete-orders', icon: ShoppingCart },
+  { title: 'Steadfast', url: '/admin/steadfast', icon: Truck },
   { title: 'Users', url: '/admin/users', icon: Users },
   { title: 'Inventory', url: '/admin/inventory', icon: Boxes },
   { title: 'Banners', url: '/admin/banners', icon: Image },

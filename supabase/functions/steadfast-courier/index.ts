@@ -15,8 +15,77 @@ interface SteadfastOrderRequest {
   note?: string;
 }
 
+interface BulkOrderRequest {
+  orders: SteadfastOrderRequest[];
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getCredentials(supabase: any) {
+  // First try to get from admin_settings table
+  const { data: settings } = await supabase
+    .from('admin_settings')
+    .select('key, value')
+    .in('key', ['steadfast_api_key', 'steadfast_secret_key']);
+
+  let apiKey = '';
+  let secretKey = '';
+
+  settings?.forEach((setting: { key: string; value: string }) => {
+    if (setting.key === 'steadfast_api_key') {
+      apiKey = setting.value;
+    } else if (setting.key === 'steadfast_secret_key') {
+      secretKey = setting.value;
+    }
+  });
+
+  // Fallback to environment variables
+  if (!apiKey) apiKey = Deno.env.get('STEADFAST_API_KEY') || '';
+  if (!secretKey) secretKey = Deno.env.get('STEADFAST_SECRET_KEY') || '';
+
+  return { apiKey, secretKey };
+}
+
+async function sendToSteadfast(
+  order: SteadfastOrderRequest,
+  apiKey: string,
+  secretKey: string
+): Promise<{ success: boolean; data?: unknown; error?: string }> {
+  try {
+    const response = await fetch('https://portal.steadfast.com.bd/api/v1/create_order', {
+      method: 'POST',
+      headers: {
+        'Api-Key': apiKey,
+        'Secret-Key': secretKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        invoice: order.invoice,
+        recipient_name: order.recipient_name,
+        recipient_phone: order.recipient_phone,
+        recipient_address: order.recipient_address,
+        cod_amount: order.cod_amount,
+        note: order.note || '',
+      }),
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok || data.status !== 200) {
+      return { 
+        success: false, 
+        error: data.message || 'Failed to create Steadfast order',
+        data 
+      };
+    }
+
+    return { success: true, data };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return { success: false, error: errorMessage };
+  }
+}
+
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -29,80 +98,92 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const STEADFAST_API_KEY = Deno.env.get('STEADFAST_API_KEY');
-    const STEADFAST_SECRET_KEY = Deno.env.get('STEADFAST_SECRET_KEY');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    if (!STEADFAST_API_KEY || !STEADFAST_SECRET_KEY) {
+    const { apiKey, secretKey } = await getCredentials(supabase);
+
+    if (!apiKey || !secretKey) {
       console.error('Steadfast credentials not configured');
       return new Response(
-        JSON.stringify({ error: 'Steadfast credentials not configured' }),
+        JSON.stringify({ error: 'Steadfast credentials not configured. Please add them in Admin → Steadfast settings.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const body: SteadfastOrderRequest = await req.json();
-    console.log('Creating Steadfast order for:', body.invoice);
+    const body = await req.json();
+    
+    // Check if it's a bulk request
+    if (body.orders && Array.isArray(body.orders)) {
+      console.log(`Processing bulk order: ${body.orders.length} orders`);
+      
+      const results: { orderId: string; success: boolean; tracking_code?: string; error?: string }[] = [];
+      
+      for (const order of body.orders as SteadfastOrderRequest[]) {
+        const result = await sendToSteadfast(order, apiKey, secretKey);
+        
+        if (result.success && result.data) {
+          const consignmentData = result.data as { consignment?: { consignment_id?: string; tracking_code?: string } };
+          const trackingCode = consignmentData.consignment?.tracking_code || consignmentData.consignment?.consignment_id;
+          
+          // Update order with tracking
+          if (order.orderId) {
+            await supabase
+              .from('orders')
+              .update({ tracking_number: trackingCode, status: 'processing' })
+              .eq('id', order.orderId);
+          }
+          
+          results.push({ orderId: order.orderId, success: true, tracking_code: trackingCode });
+        } else {
+          results.push({ orderId: order.orderId, success: false, error: result.error });
+        }
+      }
+      
+      const successCount = results.filter(r => r.success).length;
+      const failCount = results.filter(r => !r.success).length;
+      
+      return new Response(
+        JSON.stringify({ 
+          success: failCount === 0,
+          message: `Sent ${successCount} orders, ${failCount} failed`,
+          results 
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    // Validate required fields
-    if (!body.invoice || !body.recipient_name || !body.recipient_phone || !body.recipient_address || body.cod_amount === undefined) {
+    // Single order request
+    const order = body as SteadfastOrderRequest;
+    console.log('Creating Steadfast order for:', order.invoice);
+
+    if (!order.invoice || !order.recipient_name || !order.recipient_phone || !order.recipient_address || order.cod_amount === undefined) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Call Steadfast API to create consignment
-    const steadfastResponse = await fetch('https://portal.steadfast.com.bd/api/v1/create_order', {
-      method: 'POST',
-      headers: {
-        'Api-Key': STEADFAST_API_KEY,
-        'Secret-Key': STEADFAST_SECRET_KEY,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        invoice: body.invoice,
-        recipient_name: body.recipient_name,
-        recipient_phone: body.recipient_phone,
-        recipient_address: body.recipient_address,
-        cod_amount: body.cod_amount,
-        note: body.note || '',
-      }),
-    });
-
-    const steadfastData = await steadfastResponse.json();
-    console.log('Steadfast API response:', steadfastData);
-
-    if (!steadfastResponse.ok || steadfastData.status !== 200) {
-      console.error('Steadfast API error:', steadfastData);
+    const result = await sendToSteadfast(order, apiKey, secretKey);
+    
+    if (!result.success) {
+      console.error('Steadfast API error:', result.error);
       return new Response(
-        JSON.stringify({ 
-          error: steadfastData.message || 'Failed to create Steadfast order',
-          details: steadfastData.errors || steadfastData
-        }),
+        JSON.stringify({ error: result.error, details: result.data }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Update order with tracking info in Supabase
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const consignmentData = result.data as { consignment?: { consignment_id?: string; tracking_code?: string } };
+    const consignmentId = consignmentData.consignment?.consignment_id;
+    const trackingCode = consignmentData.consignment?.tracking_code;
 
-    const consignmentId = steadfastData.consignment?.consignment_id;
-    const trackingCode = steadfastData.consignment?.tracking_code;
-
-    if (consignmentId && body.orderId) {
-      const { error: updateError } = await supabase
+    if ((consignmentId || trackingCode) && order.orderId) {
+      await supabase
         .from('orders')
-        .update({ 
-          tracking_number: trackingCode || consignmentId,
-          status: 'processing'
-        })
-        .eq('id', body.orderId);
-
-      if (updateError) {
-        console.error('Failed to update order tracking:', updateError);
-      }
+        .update({ tracking_number: trackingCode || consignmentId, status: 'processing' })
+        .eq('id', order.orderId);
     }
 
     return new Response(
@@ -111,7 +192,7 @@ Deno.serve(async (req) => {
         message: 'Order sent to Steadfast successfully',
         consignment_id: consignmentId,
         tracking_code: trackingCode,
-        data: steadfastData
+        data: result.data
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
