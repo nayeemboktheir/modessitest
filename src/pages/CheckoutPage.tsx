@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { ShoppingBag, Truck, ArrowLeft, Loader2, CheckCircle, Banknote } from 'lucide-react';
+import { ShippingMethodSelector, ShippingZone, SHIPPING_RATES } from '@/components/checkout/ShippingMethodSelector';
 
 interface ShippingForm {
   name: string;
@@ -42,6 +43,7 @@ const CheckoutPage = () => {
   const [orderNumber, setOrderNumber] = useState('');
   const draftOrderId = useRef<string | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [shippingZone, setShippingZone] = useState<ShippingZone>('outside_dhaka');
   
   const [shippingForm, setShippingForm] = useState<ShippingForm>({
     name: '',
@@ -49,7 +51,7 @@ const CheckoutPage = () => {
     address: '',
   });
   
-  const shippingCost = cartTotal >= 2000 ? 0 : 100;
+  const shippingCost = SHIPPING_RATES[shippingZone];
   const total = cartTotal + shippingCost;
 
   // Load saved address if user is logged in
@@ -224,6 +226,7 @@ const CheckoutPage = () => {
           address: shippingForm.address,
         },
         paymentMethod: 'cod',
+        shippingZone: shippingZone,
       });
       
       // Mark draft order as converted
@@ -370,6 +373,13 @@ const CheckoutPage = () => {
                       required
                     />
                   </div>
+
+                  {/* Shipping Method Selector */}
+                  <ShippingMethodSelector
+                    address={shippingForm.address}
+                    selectedZone={shippingZone}
+                    onZoneChange={setShippingZone}
+                  />
                 </div>
               </div>
 
@@ -433,20 +443,13 @@ const CheckoutPage = () => {
                     <span className="font-medium text-foreground">{formatPrice(cartTotal)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Shipping</span>
+                    <span className="text-muted-foreground">
+                      Shipping ({shippingZone === 'inside_dhaka' ? 'Inside Dhaka' : 'Outside Dhaka'})
+                    </span>
                     <span className="font-medium text-foreground">
-                      {shippingCost === 0 ? (
-                        <span className="text-primary">Free</span>
-                      ) : (
-                        formatPrice(shippingCost)
-                      )}
+                      {formatPrice(shippingCost)}
                     </span>
                   </div>
-                  {cartTotal < 2000 && (
-                    <p className="text-xs text-muted-foreground">
-                      Add {formatPrice(2000 - cartTotal)} more for free shipping
-                    </p>
-                  )}
                 </div>
 
                 <Separator className="my-4" />
