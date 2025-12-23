@@ -51,7 +51,7 @@ async function sendToSteadfast(
   secretKey: string
 ): Promise<{ success: boolean; data?: unknown; error?: string }> {
   try {
-    const response = await fetch('https://portal.steadfast.com.bd/api/v1/create_order', {
+    const response = await fetch('https://portal.packzy.com/api/v1/create_order', {
       method: 'POST',
       headers: {
         'Api-Key': apiKey,
