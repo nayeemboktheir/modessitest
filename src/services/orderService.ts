@@ -16,7 +16,14 @@ export const createOrder = async (orderData: CreateOrderData): Promise<Order> =>
   const { data, error } = await supabase.functions.invoke('place-order', {
     body: {
       userId: orderData.userId,
-      items: orderData.items.map((i) => ({ productId: i.product.id, quantity: i.quantity })),
+      items: orderData.items.map((i) => ({
+        productId: i.product.id,
+        quantity: i.quantity,
+        // Provide extra fields so orders can still be placed when the catalog uses non-UUID mock ids
+        productName: i.product.name,
+        productImage: i.product.images?.[0] ?? null,
+        price: i.product.price,
+      })),
       shipping: {
         name: orderData.shippingAddress.name,
         phone: orderData.shippingAddress.phone,
