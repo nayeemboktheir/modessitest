@@ -229,6 +229,15 @@ Deno.serve(async (req) => {
 
     if (itemsError) throw itemsError;
 
+    // Fetch generated order number
+    const { data: orderData } = await supabase
+      .from('orders')
+      .select('order_number')
+      .eq('id', orderId)
+      .single();
+    
+    const orderNumber = orderData?.order_number || orderId;
+
     // Send Purchase event to Facebook CAPI
     try {
       console.log('Sending Purchase event to Facebook CAPI...');
@@ -258,6 +267,43 @@ Deno.serve(async (req) => {
       console.log('CAPI response:', JSON.stringify(capiResult));
     } catch (capiError) {
       console.error('Failed to send CAPI event:', capiError);
+    }
+
+    // Send order confirmation SMS
+    try {
+      // Check if auto-send is enabled
+      const { data: smsSettings } = await supabase
+        .from('admin_settings')
+        .select('key, value')
+        .in('key', ['sms_enabled', 'sms_auto_send_order_placed']);
+
+      const settings: Record<string, string> = {};
+      smsSettings?.forEach((s: { key: string; value: string }) => {
+        settings[s.key] = s.value;
+      });
+
+      if (settings.sms_enabled === 'true' && settings.sms_auto_send_order_placed === 'true') {
+        console.log('Sending order confirmation SMS...');
+        const smsUrl = `${supabaseUrl}/functions/v1/send-sms`;
+        const smsResponse = await fetch(smsUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phone: phone,
+            template_key: 'order_placed',
+            order_id: orderId,
+            variables: {
+              customer_name: name,
+              order_number: orderNumber,
+              total: total.toString(),
+            },
+          }),
+        });
+        const smsResult = await smsResponse.json();
+        console.log('SMS response:', JSON.stringify(smsResult));
+      }
+    } catch (smsError) {
+      console.error('Failed to send order SMS:', smsError);
     }
 
     return new Response(

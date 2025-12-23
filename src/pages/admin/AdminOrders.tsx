@@ -121,6 +121,13 @@ export default function AdminOrders() {
     try {
       await updateOrderStatus(orderId, newStatus, trackingNumber || undefined);
       toast.success('Order status updated');
+      
+      // Send SMS notification for status change
+      const order = orders.find(o => o.id === orderId);
+      if (order) {
+        sendStatusSms(order, newStatus);
+      }
+      
       loadOrders();
       
       if (selectedOrder && selectedOrder.id === orderId) {
@@ -130,6 +137,59 @@ export default function AdminOrders() {
       toast.error('Failed to update order status');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const sendStatusSms = async (order: Order, newStatus: string) => {
+    try {
+      // Check if auto-send is enabled
+      const { data: smsSettings } = await supabase
+        .from('admin_settings')
+        .select('key, value')
+        .in('key', ['sms_enabled', 'sms_auto_send_status_change']);
+
+      const settings: Record<string, string> = {};
+      smsSettings?.forEach((item) => {
+        settings[item.key] = item.value;
+      });
+
+      if (settings.sms_enabled !== 'true' || settings.sms_auto_send_status_change !== 'true') {
+        return;
+      }
+
+      // Map status to template key
+      const statusTemplateMap: Record<string, string> = {
+        'processing': 'order_processing',
+        'confirmed': 'order_confirmed',
+        'shipped': 'order_shipped',
+        'delivered': 'order_delivered',
+        'cancelled': 'order_cancelled',
+      };
+
+      const templateKey = statusTemplateMap[newStatus];
+      if (!templateKey) return;
+
+      const { data, error } = await supabase.functions.invoke('send-sms', {
+        body: {
+          phone: order.shipping_phone,
+          template_key: templateKey,
+          order_id: order.id,
+          variables: {
+            customer_name: order.shipping_name,
+            order_number: order.order_number,
+            total: order.total.toString(),
+            tracking_number: trackingNumber || order.tracking_number || '',
+          },
+        },
+      });
+
+      if (error) {
+        console.error('SMS error:', error);
+      } else if (data?.success) {
+        toast.success('SMS notification sent');
+      }
+    } catch (error) {
+      console.error('Failed to send status SMS:', error);
     }
   };
 

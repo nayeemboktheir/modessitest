@@ -33,6 +33,7 @@ import AdminInventory from '@/pages/admin/AdminInventory';
 import AdminBanners from '@/pages/admin/AdminBanners';
 import AdminShopSettings from '@/pages/admin/AdminShopSettings';
 import AdminMarketing from '@/pages/admin/AdminMarketing';
+import AdminSMS from '@/pages/admin/AdminSMS';
 
 const queryClient = new QueryClient();
 
@@ -55,6 +56,7 @@ function AppContent() {
           <Route path="/admin/inventory" element={<AdminInventory />} />
           <Route path="/admin/banners" element={<AdminBanners />} />
           <Route path="/admin/marketing" element={<AdminMarketing />} />
+          <Route path="/admin/sms" element={<AdminSMS />} />
           <Route path="/admin/shop-settings" element={<AdminShopSettings />} />
         </Routes>
       </AdminLayout>
