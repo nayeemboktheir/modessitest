@@ -7,13 +7,9 @@ interface CreateOrderData {
   shippingAddress: {
     name: string;
     phone: string;
-    street: string;
-    city: string;
-    district: string;
-    postalCode?: string;
+    address: string;
   };
   paymentMethod: 'cod' | 'stripe';
-  notes?: string;
 }
 
 export const createOrder = async (orderData: CreateOrderData): Promise<Order> => {
@@ -39,11 +35,11 @@ export const createOrder = async (orderData: CreateOrderData): Promise<Order> =>
       total: total,
       shipping_name: orderData.shippingAddress.name,
       shipping_phone: orderData.shippingAddress.phone,
-      shipping_street: orderData.shippingAddress.street,
-      shipping_city: orderData.shippingAddress.city,
-      shipping_district: orderData.shippingAddress.district,
-      shipping_postal_code: orderData.shippingAddress.postalCode,
-      notes: orderData.notes,
+      shipping_street: orderData.shippingAddress.address,
+      shipping_city: 'N/A',
+      shipping_district: 'N/A',
+      shipping_postal_code: null,
+      notes: null,
     })
     .select()
     .single();

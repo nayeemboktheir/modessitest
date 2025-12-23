@@ -8,19 +8,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { ShoppingBag, Truck, CreditCard, Banknote, ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
+import { ShoppingBag, Truck, ArrowLeft, Loader2, CheckCircle, Banknote } from 'lucide-react';
 
 interface ShippingForm {
   name: string;
   phone: string;
-  street: string;
-  city: string;
-  district: string;
-  postalCode: string;
+  address: string;
 }
 
 const CheckoutPage = () => {
@@ -39,14 +34,8 @@ const CheckoutPage = () => {
   const [shippingForm, setShippingForm] = useState<ShippingForm>({
     name: '',
     phone: '',
-    street: '',
-    city: '',
-    district: '',
-    postalCode: '',
+    address: '',
   });
-  
-  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'stripe'>('cod');
-  const [notes, setNotes] = useState('');
   
   const shippingCost = cartTotal >= 2000 ? 0 : 100;
   const total = cartTotal + shippingCost;
@@ -67,10 +56,7 @@ const CheckoutPage = () => {
         setShippingForm({
           name: addresses.name,
           phone: addresses.phone,
-          street: addresses.street,
-          city: addresses.city,
-          district: addresses.district,
-          postalCode: addresses.postal_code || '',
+          address: `${addresses.street}, ${addresses.city}, ${addresses.district}`,
         });
       } else {
         // Load profile info if no default address
@@ -104,7 +90,7 @@ const CheckoutPage = () => {
     return `৳${price.toLocaleString('en-BD')}`;
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setShippingForm(prev => ({ ...prev, [name]: value }));
   };
@@ -118,16 +104,8 @@ const CheckoutPage = () => {
       toast({ title: "Valid Bangladesh phone number is required", variant: "destructive" });
       return false;
     }
-    if (!shippingForm.street.trim()) {
-      toast({ title: "Street address is required", variant: "destructive" });
-      return false;
-    }
-    if (!shippingForm.city.trim()) {
-      toast({ title: "City is required", variant: "destructive" });
-      return false;
-    }
-    if (!shippingForm.district.trim()) {
-      toast({ title: "District is required", variant: "destructive" });
+    if (!shippingForm.address.trim()) {
+      toast({ title: "Address is required", variant: "destructive" });
       return false;
     }
     return true;
@@ -144,9 +122,12 @@ const CheckoutPage = () => {
       const order = await createOrder({
         userId: user?.id || null,
         items: cartItems,
-        shippingAddress: shippingForm,
-        paymentMethod,
-        notes: notes.trim() || undefined,
+        shippingAddress: {
+          name: shippingForm.name,
+          phone: shippingForm.phone,
+          address: shippingForm.address,
+        },
+        paymentMethod: 'cod',
       });
       
       dispatch(clearCart());
@@ -240,134 +221,64 @@ const CheckoutPage = () => {
                   <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
                     <Truck className="h-5 w-5 text-primary" />
                   </div>
-                  <h2 className="font-display text-xl font-semibold text-foreground">Shipping Information</h2>
+                  <h2 className="font-display text-xl font-semibold text-foreground">Delivery Information</h2>
                 </div>
                 
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name *</Label>
-                    <Input
-                      id="name"
-                      name="name"
-                      placeholder="Enter your full name"
-                      value={shippingForm.name}
-                      onChange={handleInputChange}
-                      required
-                    />
+                <div className="space-y-4">
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Full Name *</Label>
+                      <Input
+                        id="name"
+                        name="name"
+                        placeholder="Enter your full name"
+                        value={shippingForm.name}
+                        onChange={handleInputChange}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone Number *</Label>
+                      <Input
+                        id="phone"
+                        name="phone"
+                        placeholder="01XXX-XXXXXX"
+                        value={shippingForm.phone}
+                        onChange={handleInputChange}
+                        required
+                      />
+                    </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number *</Label>
+                    <Label htmlFor="address">Full Address *</Label>
                     <Input
-                      id="phone"
-                      name="phone"
-                      placeholder="01XXX-XXXXXX"
-                      value={shippingForm.phone}
+                      id="address"
+                      name="address"
+                      placeholder="House no, Road, Area, City, District"
+                      value={shippingForm.address}
                       onChange={handleInputChange}
                       required
-                    />
-                  </div>
-                  <div className="sm:col-span-2 space-y-2">
-                    <Label htmlFor="street">Street Address *</Label>
-                    <Input
-                      id="street"
-                      name="street"
-                      placeholder="House no, Road no, Area"
-                      value={shippingForm.street}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="city">City *</Label>
-                    <Input
-                      id="city"
-                      name="city"
-                      placeholder="e.g., Dhaka"
-                      value={shippingForm.city}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="district">District *</Label>
-                    <Input
-                      id="district"
-                      name="district"
-                      placeholder="e.g., Dhaka"
-                      value={shippingForm.district}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="postalCode">Postal Code (Optional)</Label>
-                    <Input
-                      id="postalCode"
-                      name="postalCode"
-                      placeholder="e.g., 1205"
-                      value={shippingForm.postalCode}
-                      onChange={handleInputChange}
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Payment Method */}
+              {/* Payment Method - Fixed COD */}
               <div className="bg-card rounded-xl p-6 shadow-sm">
-                <div className="flex items-center gap-3 mb-6">
+                <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                    <CreditCard className="h-5 w-5 text-primary" />
+                    <Banknote className="h-5 w-5 text-primary" />
                   </div>
                   <h2 className="font-display text-xl font-semibold text-foreground">Payment Method</h2>
                 </div>
                 
-                <RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as 'cod' | 'stripe')}>
-                  <div className="space-y-3">
-                    <label
-                      htmlFor="cod"
-                      className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        paymentMethod === 'cod' 
-                          ? 'border-primary bg-primary/5' 
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      <RadioGroupItem value="cod" id="cod" />
-                      <Banknote className="h-6 w-6 text-muted-foreground" />
-                      <div className="flex-1">
-                        <p className="font-medium text-foreground">Cash on Delivery</p>
-                        <p className="text-sm text-muted-foreground">Pay when you receive your order</p>
-                      </div>
-                    </label>
-                    
-                    <label
-                      htmlFor="stripe"
-                      className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        paymentMethod === 'stripe' 
-                          ? 'border-primary bg-primary/5' 
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      <RadioGroupItem value="stripe" id="stripe" />
-                      <CreditCard className="h-6 w-6 text-muted-foreground" />
-                      <div className="flex-1">
-                        <p className="font-medium text-foreground">Card Payment</p>
-                        <p className="text-sm text-muted-foreground">Pay securely with credit/debit card</p>
-                      </div>
-                      <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded">Coming Soon</span>
-                    </label>
+                <div className="flex items-center gap-4 p-4 rounded-lg border-2 border-primary bg-primary/5">
+                  <Banknote className="h-6 w-6 text-primary" />
+                  <div>
+                    <p className="font-medium text-foreground">Cash on Delivery</p>
+                    <p className="text-sm text-muted-foreground">Pay when you receive your order</p>
                   </div>
-                </RadioGroup>
-              </div>
-
-              {/* Order Notes */}
-              <div className="bg-card rounded-xl p-6 shadow-sm">
-                <h2 className="font-display text-xl font-semibold text-foreground mb-4">Order Notes (Optional)</h2>
-                <Textarea
-                  placeholder="Add any special instructions for your order..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={3}
-                />
+                </div>
               </div>
             </div>
 
@@ -446,11 +357,11 @@ const CheckoutPage = () => {
                       Processing...
                     </>
                   ) : (
-                    `Place Order • ${formatPrice(total)}`
+                    <>Place Order • {formatPrice(total)}</>
                   )}
                 </Button>
 
-                <p className="text-xs text-muted-foreground text-center mt-4">
+                <p className="text-xs text-center text-muted-foreground mt-4">
                   By placing your order, you agree to our Terms of Service and Privacy Policy.
                 </p>
               </div>
