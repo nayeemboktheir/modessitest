@@ -27,7 +27,8 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Search, Eye, Package, Truck, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Search, Eye, Package, Truck, CheckCircle, XCircle, Clock, Send } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { getAllOrders, updateOrderStatus } from '@/services/adminService';
 import { format } from 'date-fns';
 
@@ -78,6 +79,7 @@ export default function AdminOrders() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState('');
   const [updating, setUpdating] = useState(false);
+  const [sendingToSteadfast, setSendingToSteadfast] = useState(false);
 
   useEffect(() => {
     loadOrders();
@@ -121,6 +123,47 @@ export default function AdminOrders() {
       toast.error('Failed to update order status');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleSendToSteadfast = async (order: Order) => {
+    setSendingToSteadfast(true);
+    try {
+      const fullAddress = `${order.shipping_street}, ${order.shipping_district}, ${order.shipping_city}${order.shipping_postal_code ? `, ${order.shipping_postal_code}` : ''}`;
+      
+      const { data, error } = await supabase.functions.invoke('steadfast-courier', {
+        body: {
+          orderId: order.id,
+          invoice: order.order_number,
+          recipient_name: order.shipping_name,
+          recipient_phone: order.shipping_phone,
+          recipient_address: fullAddress,
+          cod_amount: order.payment_method === 'cod' ? Number(order.total) : 0,
+          note: order.notes || `Order items: ${order.order_items.map(i => `${i.product_name} x${i.quantity}`).join(', ')}`,
+        },
+      });
+
+      if (error) {
+        console.error('Steadfast error:', error);
+        toast.error(error.message || 'Failed to send order to Steadfast');
+        return;
+      }
+
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+
+      toast.success('Order sent to Steadfast successfully!');
+      if (data?.tracking_code) {
+        setTrackingNumber(data.tracking_code);
+      }
+      loadOrders();
+    } catch (error) {
+      console.error('Failed to send to Steadfast:', error);
+      toast.error('Failed to send order to Steadfast');
+    } finally {
+      setSendingToSteadfast(false);
     }
   };
 
@@ -345,6 +388,14 @@ export default function AdminOrders() {
                     />
                   </div>
                 </div>
+                <Button
+                  onClick={() => handleSendToSteadfast(selectedOrder)}
+                  disabled={sendingToSteadfast || !!selectedOrder.tracking_number}
+                  className="w-full mt-4"
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  {sendingToSteadfast ? 'Sending...' : selectedOrder.tracking_number ? 'Already Sent to Steadfast' : 'Send to Steadfast'}
+                </Button>
               </div>
             </div>
           )}
