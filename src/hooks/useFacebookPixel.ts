@@ -26,53 +26,49 @@ let pixelLoadPromise: Promise<void> | null = null;
 const loadPixelScript = (pixelId: string): Promise<void> => {
   if (pixelLoadPromise) return pixelLoadPromise;
   
-  if (window.fbq && window.fbq.loaded) {
+  // Check if pixel is already loaded and initialized
+  if (window.fbq && typeof window.fbq === 'function') {
+    console.log('Facebook Pixel already loaded');
     return Promise.resolve();
   }
 
   isPixelLoading = true;
   
   pixelLoadPromise = new Promise((resolve) => {
-    // Initialize fbq function before script loads
-    const fbq = function(...args: any[]) {
-      if (fbq.callMethod) {
-        fbq.callMethod.apply(fbq, args);
-      } else {
-        fbq.queue?.push(args);
-      }
-    } as Window['fbq'];
+    console.log('Loading Facebook Pixel script...');
     
-    if (!window._fbq) window._fbq = fbq;
-    fbq.push = fbq;
-    fbq.loaded = true;
-    fbq.version = '2.0';
-    fbq.queue = [];
-    window.fbq = fbq;
+    // Standard Facebook Pixel initialization
+    (function(f: any, b: Document, e: string, v: string, n?: any, t?: any, s?: any) {
+      if (f.fbq) return;
+      n = f.fbq = function() {
+        n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+      };
+      if (!f._fbq) f._fbq = n;
+      n.push = n;
+      n.loaded = true;
+      n.version = '2.0';
+      n.queue = [];
+      t = b.createElement(e);
+      t.async = true;
+      t.src = v;
+      s = b.getElementsByTagName(e)[0];
+      s.parentNode.insertBefore(t, s);
+    })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
 
-    // Load the Facebook Pixel script
-    const script = document.createElement('script');
-    script.async = true;
-    script.src = 'https://connect.facebook.net/en_US/fbevents.js';
-    script.onload = () => {
-      console.log('Facebook Pixel script loaded successfully');
-      // Initialize the pixel
-      window.fbq('init', pixelId);
-      console.log('Facebook Pixel initialized with ID:', pixelId);
-      isPixelLoading = false;
-      resolve();
-    };
-    script.onerror = () => {
-      console.error('Failed to load Facebook Pixel script');
-      isPixelLoading = false;
-      resolve();
+    // Initialize the pixel after a short delay to ensure script is loaded
+    const checkAndInit = () => {
+      if (window.fbq && typeof window.fbq === 'function') {
+        window.fbq('init', pixelId);
+        window.fbq('track', 'PageView');
+        console.log('Facebook Pixel initialized with ID:', pixelId);
+        isPixelLoading = false;
+        resolve();
+      } else {
+        setTimeout(checkAndInit, 100);
+      }
     };
     
-    const firstScript = document.getElementsByTagName('script')[0];
-    if (firstScript && firstScript.parentNode) {
-      firstScript.parentNode.insertBefore(script, firstScript);
-    } else {
-      document.head.appendChild(script);
-    }
+    setTimeout(checkAndInit, 500);
 
     // Add noscript fallback
     const noscript = document.createElement('noscript');

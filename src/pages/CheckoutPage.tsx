@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { ShoppingBag, Truck, ArrowLeft, Loader2, CheckCircle, Banknote } from 'lucide-react';
 import { ShippingMethodSelector, ShippingZone, SHIPPING_RATES } from '@/components/checkout/ShippingMethodSelector';
+import { useFacebookPixel } from '@/hooks/useFacebookPixel';
 
 interface ShippingForm {
   name: string;
@@ -34,9 +35,11 @@ const CheckoutPage = () => {
   const dispatch = useAppDispatch();
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
+  const { trackInitiateCheckout, isReady } = useFacebookPixel();
   
   const cartItems = useAppSelector(selectCartItems);
   const cartTotal = useAppSelector(selectCartTotal);
+  const hasTrackedCheckout = useRef(false);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
@@ -99,6 +102,20 @@ const CheckoutPage = () => {
       navigate('/cart');
     }
   }, [cartItems, authLoading, navigate, orderSuccess]);
+
+  // Track InitiateCheckout event once
+  useEffect(() => {
+    if (isReady && cartItems.length > 0 && !hasTrackedCheckout.current) {
+      console.log('Firing InitiateCheckout event');
+      trackInitiateCheckout({
+        content_ids: cartItems.map(item => item.product.id),
+        num_items: cartItems.reduce((sum, item) => sum + item.quantity, 0),
+        value: cartTotal,
+        currency: 'BDT',
+      });
+      hasTrackedCheckout.current = true;
+    }
+  }, [isReady, cartItems, cartTotal, trackInitiateCheckout]);
 
   // Save draft order when form changes
   const saveDraftOrder = useCallback(async () => {

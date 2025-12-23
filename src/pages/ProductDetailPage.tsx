@@ -23,6 +23,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { addToCart, openCart } from '@/store/slices/cartSlice';
 import { toggleWishlist, selectWishlistItems } from '@/store/slices/wishlistSlice';
 import { toast } from 'sonner';
+import { useFacebookPixel } from '@/hooks/useFacebookPixel';
 
 const ProductDetailPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -34,8 +35,23 @@ const ProductDetailPage = () => {
   
   const dispatch = useAppDispatch();
   const wishlistItems = useAppSelector(selectWishlistItems);
+  const { trackViewContent, trackAddToCart, isReady } = useFacebookPixel();
 
   const isInWishlist = product ? wishlistItems.some((item) => item.id === product.id) : false;
+
+  // Track ViewContent when product loads
+  useEffect(() => {
+    if (product && isReady) {
+      console.log('Firing ViewContent for product:', product.name);
+      trackViewContent({
+        content_ids: [product.id],
+        content_name: product.name,
+        content_type: 'product',
+        value: product.price,
+        currency: 'BDT',
+      });
+    }
+  }, [product, isReady, trackViewContent]);
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -90,6 +106,17 @@ const ProductDetailPage = () => {
   const handleAddToCart = () => {
     dispatch(addToCart({ product, quantity }));
     dispatch(openCart());
+    
+    // Track AddToCart event
+    console.log('Firing AddToCart for product:', product.name);
+    trackAddToCart({
+      content_ids: [product.id],
+      content_name: product.name,
+      content_type: 'product',
+      value: product.price * quantity,
+      currency: 'BDT',
+    });
+    
     toast.success('Added to cart!');
   };
 

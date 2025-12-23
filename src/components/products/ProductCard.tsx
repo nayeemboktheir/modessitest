@@ -8,6 +8,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { addToCart, openCart } from '@/store/slices/cartSlice';
 import { toggleWishlist, selectWishlistItems } from '@/store/slices/wishlistSlice';
 import { toast } from 'sonner';
+import { useFacebookPixel } from '@/hooks/useFacebookPixel';
 
 interface ProductCardProps {
   product: Product;
@@ -17,6 +18,7 @@ interface ProductCardProps {
 const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
   const dispatch = useAppDispatch();
   const wishlistItems = useAppSelector(selectWishlistItems);
+  const { trackAddToCart } = useFacebookPixel();
   const isInWishlist = wishlistItems.some((item) => item.id === product.id);
 
   const formatPrice = (price: number) => {
@@ -28,6 +30,17 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
     e.stopPropagation();
     dispatch(addToCart({ product }));
     dispatch(openCart());
+    
+    // Track AddToCart event
+    console.log('Firing AddToCart from ProductCard:', product.name);
+    trackAddToCart({
+      content_ids: [product.id],
+      content_name: product.name,
+      content_type: 'product',
+      value: product.price,
+      currency: 'BDT',
+    });
+    
     toast.success('Added to cart!');
   };
 
