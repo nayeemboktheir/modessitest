@@ -28,12 +28,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Search, Eye, Package, Truck, CheckCircle, XCircle, Clock, Send } from 'lucide-react';
+import { Search, Eye, Package, Truck, CheckCircle, XCircle, Clock, Send, Printer } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { getAllOrders, updateOrderStatus } from '@/services/adminService';
 import { format } from 'date-fns';
 import { CourierHistoryDialog } from '@/components/admin/CourierHistoryDialog';
 import { CourierHistoryInline } from '@/components/admin/CourierHistoryInline';
+import { InvoicePrintDialog } from '@/components/admin/InvoicePrintDialog';
 
 interface OrderItem {
   id: string;
@@ -85,6 +86,7 @@ export default function AdminOrders() {
   const [sendingToSteadfast, setSendingToSteadfast] = useState(false);
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [bulkSending, setBulkSending] = useState(false);
+  const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
 
   useEffect(() => {
     loadOrders();
@@ -183,10 +185,10 @@ export default function AdminOrders() {
   };
 
   const toggleSelectAll = () => {
-    if (selectedOrderIds.size === filteredOrders.filter(o => !o.tracking_number).length) {
+    if (selectedOrderIds.size === filteredOrders.length) {
       setSelectedOrderIds(new Set());
     } else {
-      setSelectedOrderIds(new Set(filteredOrders.filter(o => !o.tracking_number).map(o => o.id)));
+      setSelectedOrderIds(new Set(filteredOrders.map(o => o.id)));
     }
   };
 
@@ -295,14 +297,24 @@ export default function AdminOrders() {
             </div>
             <div className="flex gap-2">
               {selectedOrderIds.size > 0 && (
-                <Button
-                  onClick={handleBulkSendToSteadfast}
-                  disabled={bulkSending}
-                  className="gap-2"
-                >
-                  <Send className="h-4 w-4" />
-                  {bulkSending ? 'Sending...' : `Send ${selectedOrderIds.size} to Steadfast`}
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsInvoiceDialogOpen(true)}
+                    className="gap-2"
+                  >
+                    <Printer className="h-4 w-4" />
+                    Print {selectedOrderIds.size} Invoice{selectedOrderIds.size > 1 ? 's' : ''}
+                  </Button>
+                  <Button
+                    onClick={handleBulkSendToSteadfast}
+                    disabled={bulkSending}
+                    className="gap-2"
+                  >
+                    <Send className="h-4 w-4" />
+                    {bulkSending ? 'Sending...' : `Send ${selectedOrderIds.size} to Steadfast`}
+                  </Button>
+                </>
               )}
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-40">
@@ -326,7 +338,7 @@ export default function AdminOrders() {
               <TableRow>
                 <TableHead className="w-10">
                   <Checkbox
-                    checked={selectedOrderIds.size > 0 && selectedOrderIds.size === filteredOrders.filter(o => !o.tracking_number).length}
+                    checked={selectedOrderIds.size > 0 && selectedOrderIds.size === filteredOrders.length}
                     onCheckedChange={toggleSelectAll}
                   />
                 </TableHead>
@@ -347,7 +359,6 @@ export default function AdminOrders() {
                     <Checkbox
                       checked={selectedOrderIds.has(order.id)}
                       onCheckedChange={() => toggleOrderSelection(order.id)}
-                      disabled={!!order.tracking_number}
                     />
                   </TableCell>
                   <TableCell className="font-medium">{order.order_number}</TableCell>
@@ -364,7 +375,7 @@ export default function AdminOrders() {
                     </div>
                   </TableCell>
                   <TableCell>{format(new Date(order.created_at), 'MMM dd, yyyy')}</TableCell>
-                  <TableCell>${Number(order.total).toFixed(2)}</TableCell>
+                  <TableCell>৳{Number(order.total).toFixed(0)}</TableCell>
                   <TableCell>
                     <Badge variant={order.payment_status === 'paid' ? 'default' : 'outline'}>
                       {order.payment_status}
@@ -456,7 +467,7 @@ export default function AdminOrders() {
                         <p className="font-medium">{item.product_name}</p>
                         <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
                       </div>
-                      <p className="font-medium">${Number(item.price).toFixed(2)}</p>
+                      <p className="font-medium">৳{Number(item.price).toFixed(0)}</p>
                     </div>
                   ))}
                 </div>
@@ -465,21 +476,21 @@ export default function AdminOrders() {
               <div className="border-t pt-4">
                 <div className="flex justify-between text-sm">
                   <span>Subtotal</span>
-                  <span>${Number(selectedOrder.subtotal).toFixed(2)}</span>
+                  <span>৳{Number(selectedOrder.subtotal).toFixed(0)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Shipping</span>
-                  <span>${Number(selectedOrder.shipping_cost || 0).toFixed(2)}</span>
+                  <span>৳{Number(selectedOrder.shipping_cost || 0).toFixed(0)}</span>
                 </div>
                 {selectedOrder.discount && Number(selectedOrder.discount) > 0 && (
                   <div className="flex justify-between text-sm text-green-600">
                     <span>Discount</span>
-                    <span>-${Number(selectedOrder.discount).toFixed(2)}</span>
+                    <span>-৳{Number(selectedOrder.discount).toFixed(0)}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t">
                   <span>Total</span>
-                  <span>${Number(selectedOrder.total).toFixed(2)}</span>
+                  <span>৳{Number(selectedOrder.total).toFixed(0)}</span>
                 </div>
               </div>
 
@@ -527,6 +538,13 @@ export default function AdminOrders() {
           )}
         </DialogContent>
       </Dialog>
+
+      <InvoicePrintDialog
+        orders={orders.filter((o) => selectedOrderIds.has(o.id))}
+        open={isInvoiceDialogOpen}
+        onOpenChange={setIsInvoiceDialogOpen}
+        shopName="Your Shop"
+      />
     </div>
   );
 }
