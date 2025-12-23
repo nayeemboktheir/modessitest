@@ -9,6 +9,7 @@ import { AuthProvider } from '@/hooks/useAuth';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import CartDrawer from '@/components/cart/CartDrawer';
+import { FacebookPixelTracker } from '@/components/tracking/FacebookPixelTracker';
 import HomePage from "./pages/HomePage";
 import ProductsPage from "./pages/ProductsPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
@@ -31,6 +32,7 @@ import AdminUsers from '@/pages/admin/AdminUsers';
 import AdminInventory from '@/pages/admin/AdminInventory';
 import AdminBanners from '@/pages/admin/AdminBanners';
 import AdminShopSettings from '@/pages/admin/AdminShopSettings';
+import AdminMarketing from '@/pages/admin/AdminMarketing';
 
 const queryClient = new QueryClient();
 
@@ -52,6 +54,7 @@ function AppContent() {
           <Route path="/admin/users" element={<AdminUsers />} />
           <Route path="/admin/inventory" element={<AdminInventory />} />
           <Route path="/admin/banners" element={<AdminBanners />} />
+          <Route path="/admin/marketing" element={<AdminMarketing />} />
           <Route path="/admin/shop-settings" element={<AdminShopSettings />} />
         </Routes>
       </AdminLayout>
@@ -60,6 +63,7 @@ function AppContent() {
 
   return (
     <>
+      <FacebookPixelTracker />
       <Header />
       <CartDrawer />
       <Routes>

@@ -229,6 +229,33 @@ Deno.serve(async (req) => {
 
     if (itemsError) throw itemsError;
 
+    // Send Purchase event to Facebook CAPI (fire and forget)
+    try {
+      const capiUrl = `${supabaseUrl}/functions/v1/facebook-capi`;
+      fetch(capiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_name: 'Purchase',
+          user_data: {
+            phone: phone,
+            first_name: name.split(' ')[0] || name,
+            last_name: name.split(' ').slice(1).join(' ') || undefined,
+          },
+          custom_data: {
+            currency: 'BDT',
+            value: total,
+            content_ids: itemsFinal.map((i) => i.productId || i.name),
+            content_type: 'product',
+            num_items: itemsFinal.reduce((sum, i) => sum + i.quantity, 0),
+            order_id: orderId,
+          },
+        }),
+      }).catch((e) => console.error('CAPI call failed:', e));
+    } catch (capiError) {
+      console.error('Failed to send CAPI event:', capiError);
+    }
+
     return new Response(
       JSON.stringify({
         orderId,
