@@ -60,21 +60,44 @@ async function hashData(data: string): Promise<string> {
 }
 
 serve(async (req) => {
+  console.log("Facebook CAPI function invoked");
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    console.log("Supabase URL:", supabaseUrl ? "Set" : "Missing");
+    console.log("Service Role Key:", serviceRoleKey ? "Set" : "Missing");
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error("Missing Supabase configuration");
+      return new Response(
+        JSON.stringify({ success: false, error: "Server configuration error" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabaseClient = createClient(supabaseUrl, serviceRoleKey);
 
     // Fetch CAPI settings from admin_settings
-    const { data: settings } = await supabaseClient
+    const { data: settings, error: settingsError } = await supabaseClient
       .from("admin_settings")
       .select("key, value")
       .in("key", ["fb_pixel_id", "fb_capi_token", "fb_capi_enabled", "fb_test_event_code"]);
+
+    if (settingsError) {
+      console.error("Failed to fetch settings:", settingsError);
+      return new Response(
+        JSON.stringify({ success: false, error: "Failed to fetch settings" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Fetched settings count:", settings?.length || 0);
 
     let pixelId = "";
     let capiToken = "";
@@ -82,6 +105,7 @@ serve(async (req) => {
     let testEventCode = "";
 
     settings?.forEach((setting: { key: string; value: string }) => {
+      console.log(`Setting: ${setting.key} = ${setting.key === 'fb_capi_token' ? '[REDACTED]' : setting.value}`);
       switch (setting.key) {
         case "fb_pixel_id":
           pixelId = setting.value;
@@ -98,16 +122,36 @@ serve(async (req) => {
       }
     });
 
-    if (!capiEnabled || !pixelId || !capiToken) {
-      console.log("CAPI not enabled or missing credentials");
+    console.log("CAPI Config - Enabled:", capiEnabled, "Pixel ID:", pixelId, "Has Token:", !!capiToken, "Test Code:", testEventCode);
+
+    if (!capiEnabled) {
+      console.log("CAPI is disabled");
       return new Response(
-        JSON.stringify({ success: false, message: "CAPI not configured" }),
+        JSON.stringify({ success: false, message: "CAPI is disabled" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!pixelId) {
+      console.log("Missing Pixel ID");
+      return new Response(
+        JSON.stringify({ success: false, message: "Missing Pixel ID" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!capiToken) {
+      console.log("Missing CAPI token");
+      return new Response(
+        JSON.stringify({ success: false, message: "Missing CAPI token" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const body: RequestBody = await req.json();
-    console.log("Received CAPI event:", body.event_name);
+    console.log("Received event:", body.event_name);
+    console.log("User data:", JSON.stringify(body.user_data));
+    console.log("Custom data:", JSON.stringify(body.custom_data));
 
     // Build user data with hashing
     const userData: ConversionEvent["user_data"] = {
@@ -119,9 +163,16 @@ serve(async (req) => {
       userData.em = [await hashData(body.user_data.email)];
     }
     if (body.user_data.phone) {
-      // Remove non-digits and hash
-      const cleanPhone = body.user_data.phone.replace(/\D/g, "");
+      // Clean phone - remove non-digits, ensure country code
+      let cleanPhone = body.user_data.phone.replace(/\D/g, "");
+      // Add Bangladesh country code if not present
+      if (cleanPhone.startsWith("01")) {
+        cleanPhone = "880" + cleanPhone;
+      } else if (!cleanPhone.startsWith("880")) {
+        cleanPhone = "880" + cleanPhone;
+      }
       userData.ph = [await hashData(cleanPhone)];
+      console.log("Hashed phone from:", body.user_data.phone);
     }
     if (body.user_data.first_name) {
       userData.fn = [await hashData(body.user_data.first_name)];
@@ -135,7 +186,7 @@ serve(async (req) => {
       event_name: body.event_name,
       event_time: Math.floor(Date.now() / 1000),
       action_source: "website",
-      event_source_url: body.event_source_url,
+      event_source_url: body.event_source_url || "https://shop.example.com",
       user_data: userData,
     };
 
@@ -148,24 +199,26 @@ serve(async (req) => {
       data: [event],
     };
 
-    if (testEventCode) {
-      payload.test_event_code = testEventCode;
+    if (testEventCode && testEventCode.trim()) {
+      payload.test_event_code = testEventCode.trim();
+      console.log("Using test event code:", testEventCode);
     }
 
     console.log("Sending to Facebook CAPI:", JSON.stringify(payload, null, 2));
 
     // Send to Facebook Conversions API
-    const fbResponse = await fetch(
-      `https://graph.facebook.com/v18.0/${pixelId}/events?access_token=${capiToken}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }
-    );
+    const fbUrl = `https://graph.facebook.com/v18.0/${pixelId}/events?access_token=${capiToken}`;
+    console.log("Facebook API URL (token redacted):", `https://graph.facebook.com/v18.0/${pixelId}/events?access_token=[REDACTED]`);
+
+    const fbResponse = await fetch(fbUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
     const fbResult = await fbResponse.json();
-    console.log("Facebook CAPI response:", fbResult);
+    console.log("Facebook CAPI response status:", fbResponse.status);
+    console.log("Facebook CAPI response:", JSON.stringify(fbResult));
 
     if (!fbResponse.ok) {
       console.error("Facebook CAPI error:", fbResult);
@@ -175,6 +228,7 @@ serve(async (req) => {
       );
     }
 
+    console.log("Successfully sent event to Facebook CAPI");
     return new Response(
       JSON.stringify({ success: true, result: fbResult }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -3,7 +3,13 @@ import { supabase } from '@/integrations/supabase/client';
 
 declare global {
   interface Window {
-    fbq: (...args: any[]) => void;
+    fbq: ((...args: any[]) => void) & { 
+      push?: (...args: any[]) => void;
+      loaded?: boolean;
+      version?: string;
+      queue?: any[];
+      callMethod?: (...args: any[]) => void;
+    };
     _fbq: any;
   }
 }
@@ -13,55 +19,101 @@ interface FacebookPixelConfig {
   enabled: boolean;
 }
 
-let isInitialized = false;
 let pixelConfig: FacebookPixelConfig | null = null;
+let isPixelLoading = false;
+let pixelLoadPromise: Promise<void> | null = null;
 
-const loadPixelScript = (pixelId: string) => {
-  if (isInitialized) return;
+const loadPixelScript = (pixelId: string): Promise<void> => {
+  if (pixelLoadPromise) return pixelLoadPromise;
+  
+  if (window.fbq && window.fbq.loaded) {
+    return Promise.resolve();
+  }
 
-  // Facebook Pixel base code
-  const script = document.createElement('script');
-  script.innerHTML = `
-    !function(f,b,e,v,n,t,s)
-    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-    n.queue=[];t=b.createElement(e);t.async=!0;
-    t.src=v;s=b.getElementsByTagName(e)[0];
-    s.parentNode.insertBefore(t,s)}(window, document,'script',
-    'https://connect.facebook.net/en_US/fbevents.js');
-    fbq('init', '${pixelId}');
-  `;
-  document.head.appendChild(script);
+  isPixelLoading = true;
+  
+  pixelLoadPromise = new Promise((resolve) => {
+    // Initialize fbq function before script loads
+    const fbq = function(...args: any[]) {
+      if (fbq.callMethod) {
+        fbq.callMethod.apply(fbq, args);
+      } else {
+        fbq.queue?.push(args);
+      }
+    } as Window['fbq'];
+    
+    if (!window._fbq) window._fbq = fbq;
+    fbq.push = fbq;
+    fbq.loaded = true;
+    fbq.version = '2.0';
+    fbq.queue = [];
+    window.fbq = fbq;
 
-  // Add noscript fallback
-  const noscript = document.createElement('noscript');
-  const img = document.createElement('img');
-  img.height = 1;
-  img.width = 1;
-  img.style.display = 'none';
-  img.src = `https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1`;
-  noscript.appendChild(img);
-  document.body.appendChild(noscript);
+    // Load the Facebook Pixel script
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = 'https://connect.facebook.net/en_US/fbevents.js';
+    script.onload = () => {
+      console.log('Facebook Pixel script loaded successfully');
+      // Initialize the pixel
+      window.fbq('init', pixelId);
+      console.log('Facebook Pixel initialized with ID:', pixelId);
+      isPixelLoading = false;
+      resolve();
+    };
+    script.onerror = () => {
+      console.error('Failed to load Facebook Pixel script');
+      isPixelLoading = false;
+      resolve();
+    };
+    
+    const firstScript = document.getElementsByTagName('script')[0];
+    if (firstScript && firstScript.parentNode) {
+      firstScript.parentNode.insertBefore(script, firstScript);
+    } else {
+      document.head.appendChild(script);
+    }
 
-  isInitialized = true;
+    // Add noscript fallback
+    const noscript = document.createElement('noscript');
+    const img = document.createElement('img');
+    img.height = 1;
+    img.width = 1;
+    img.style.display = 'none';
+    img.src = `https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1`;
+    noscript.appendChild(img);
+    document.body.appendChild(noscript);
+  });
+
+  return pixelLoadPromise;
 };
 
 export const useFacebookPixel = () => {
-  const [config, setConfig] = useState<FacebookPixelConfig | null>(null);
+  const [config, setConfig] = useState<FacebookPixelConfig | null>(pixelConfig);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     const loadConfig = async () => {
+      // Use cached config if available
       if (pixelConfig) {
         setConfig(pixelConfig);
+        if (pixelConfig.enabled && pixelConfig.pixelId) {
+          await loadPixelScript(pixelConfig.pixelId);
+          setIsReady(true);
+        }
         return;
       }
 
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('admin_settings')
           .select('key, value')
           .in('key', ['fb_pixel_id', 'fb_pixel_enabled']);
+
+        if (error) {
+          console.error('Failed to fetch pixel settings:', error);
+          return;
+        }
 
         let id = '';
         let enabled = false;
@@ -75,8 +127,11 @@ export const useFacebookPixel = () => {
         pixelConfig = newConfig;
         setConfig(newConfig);
 
+        console.log('Facebook Pixel config loaded:', { enabled: newConfig.enabled, hasPixelId: !!id });
+
         if (newConfig.enabled) {
-          loadPixelScript(newConfig.pixelId);
+          await loadPixelScript(newConfig.pixelId);
+          setIsReady(true);
         }
       } catch (error) {
         console.error('Failed to load Facebook Pixel config:', error);
@@ -88,6 +143,7 @@ export const useFacebookPixel = () => {
 
   const trackPageView = useCallback(() => {
     if (config?.enabled && window.fbq) {
+      console.log('Tracking PageView');
       window.fbq('track', 'PageView');
     }
   }, [config]);
@@ -95,6 +151,7 @@ export const useFacebookPixel = () => {
   const trackViewContent = useCallback(
     (params: { content_ids: string[]; content_name: string; content_type: string; value: number; currency: string }) => {
       if (config?.enabled && window.fbq) {
+        console.log('Tracking ViewContent:', params);
         window.fbq('track', 'ViewContent', params);
       }
     },
@@ -104,6 +161,7 @@ export const useFacebookPixel = () => {
   const trackAddToCart = useCallback(
     (params: { content_ids: string[]; content_name: string; content_type: string; value: number; currency: string }) => {
       if (config?.enabled && window.fbq) {
+        console.log('Tracking AddToCart:', params);
         window.fbq('track', 'AddToCart', params);
       }
     },
@@ -113,6 +171,7 @@ export const useFacebookPixel = () => {
   const trackInitiateCheckout = useCallback(
     (params: { content_ids: string[]; num_items: number; value: number; currency: string }) => {
       if (config?.enabled && window.fbq) {
+        console.log('Tracking InitiateCheckout:', params);
         window.fbq('track', 'InitiateCheckout', params);
       }
     },
@@ -122,6 +181,7 @@ export const useFacebookPixel = () => {
   const trackPurchase = useCallback(
     (params: { content_ids: string[]; content_type: string; value: number; currency: string; num_items: number }) => {
       if (config?.enabled && window.fbq) {
+        console.log('Tracking Purchase:', params);
         window.fbq('track', 'Purchase', params);
       }
     },
@@ -130,6 +190,7 @@ export const useFacebookPixel = () => {
 
   return {
     isEnabled: config?.enabled ?? false,
+    isReady,
     trackPageView,
     trackViewContent,
     trackAddToCart,

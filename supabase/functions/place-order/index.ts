@@ -229,10 +229,11 @@ Deno.serve(async (req) => {
 
     if (itemsError) throw itemsError;
 
-    // Send Purchase event to Facebook CAPI (fire and forget)
+    // Send Purchase event to Facebook CAPI
     try {
+      console.log('Sending Purchase event to Facebook CAPI...');
       const capiUrl = `${supabaseUrl}/functions/v1/facebook-capi`;
-      fetch(capiUrl, {
+      const capiResponse = await fetch(capiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -250,8 +251,11 @@ Deno.serve(async (req) => {
             num_items: itemsFinal.reduce((sum, i) => sum + i.quantity, 0),
             order_id: orderId,
           },
+          event_source_url: 'https://shop.example.com/checkout',
         }),
-      }).catch((e) => console.error('CAPI call failed:', e));
+      });
+      const capiResult = await capiResponse.json();
+      console.log('CAPI response:', JSON.stringify(capiResult));
     } catch (capiError) {
       console.error('Failed to send CAPI event:', capiError);
     }
