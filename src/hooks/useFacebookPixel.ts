@@ -25,22 +25,26 @@ let pixelLoadPromise: Promise<void> | null = null;
 
 const loadPixelScript = (pixelId: string): Promise<void> => {
   if (pixelLoadPromise) return pixelLoadPromise;
-  
-  // Check if pixel is already loaded and initialized
-  if (window.fbq && typeof window.fbq === 'function') {
-    console.log('Facebook Pixel already loaded');
-    return Promise.resolve();
-  }
 
   isPixelLoading = true;
-  
+
   pixelLoadPromise = new Promise((resolve) => {
     console.log('Loading Facebook Pixel script...');
-    
+
+    // If fbq already exists, just (re)initialize with our pixel ID
+    if (window.fbq && typeof window.fbq === 'function') {
+      window.fbq('init', pixelId);
+      window.fbq('track', 'PageView');
+      console.log('Facebook Pixel initialized with ID:', pixelId);
+      isPixelLoading = false;
+      resolve();
+      return;
+    }
+
     // Standard Facebook Pixel initialization
-    (function(f: any, b: Document, e: string, v: string, n?: any, t?: any, s?: any) {
+    (function (f: any, b: Document, e: string, v: string, n?: any, t?: any, s?: any) {
       if (f.fbq) return;
-      n = f.fbq = function() {
+      n = f.fbq = function () {
         n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
       };
       if (!f._fbq) f._fbq = n;
@@ -55,7 +59,7 @@ const loadPixelScript = (pixelId: string): Promise<void> => {
       s.parentNode.insertBefore(t, s);
     })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
 
-    // Initialize the pixel after a short delay to ensure script is loaded
+    // Initialize the pixel after script is ready
     const checkAndInit = () => {
       if (window.fbq && typeof window.fbq === 'function') {
         window.fbq('init', pixelId);
@@ -67,8 +71,8 @@ const loadPixelScript = (pixelId: string): Promise<void> => {
         setTimeout(checkAndInit, 100);
       }
     };
-    
-    setTimeout(checkAndInit, 500);
+
+    setTimeout(checkAndInit, 300);
 
     // Add noscript fallback
     const noscript = document.createElement('noscript');
@@ -90,16 +94,6 @@ export const useFacebookPixel = () => {
 
   useEffect(() => {
     const loadConfig = async () => {
-      // Use cached config if available
-      if (pixelConfig) {
-        setConfig(pixelConfig);
-        if (pixelConfig.enabled && pixelConfig.pixelId) {
-          await loadPixelScript(pixelConfig.pixelId);
-          setIsReady(true);
-        }
-        return;
-      }
-
       try {
         const { data, error } = await supabase
           .from('admin_settings')
@@ -120,6 +114,8 @@ export const useFacebookPixel = () => {
         });
 
         const newConfig = { pixelId: id, enabled: enabled && !!id };
+
+        // Update cache + state every mount so admin changes take effect without stale config
         pixelConfig = newConfig;
         setConfig(newConfig);
 
@@ -128,6 +124,8 @@ export const useFacebookPixel = () => {
         if (newConfig.enabled) {
           await loadPixelScript(newConfig.pixelId);
           setIsReady(true);
+        } else {
+          setIsReady(false);
         }
       } catch (error) {
         console.error('Failed to load Facebook Pixel config:', error);
@@ -136,6 +134,7 @@ export const useFacebookPixel = () => {
 
     loadConfig();
   }, []);
+
 
   const trackPageView = useCallback(() => {
     if (config?.enabled && window.fbq) {
