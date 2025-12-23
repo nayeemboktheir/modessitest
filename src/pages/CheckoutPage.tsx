@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { selectCartItems, selectCartTotal, clearCart } from '@/store/slices/cartSlice';
@@ -18,6 +18,16 @@ interface ShippingForm {
   address: string;
 }
 
+// Generate or get session ID for tracking incomplete orders
+const getSessionId = () => {
+  let sessionId = localStorage.getItem('checkout_session_id');
+  if (!sessionId) {
+    sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem('checkout_session_id', sessionId);
+  }
+  return sessionId;
+};
+
 const CheckoutPage = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -30,6 +40,8 @@ const CheckoutPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderNumber, setOrderNumber] = useState('');
+  const draftOrderId = useRef<string | null>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const [shippingForm, setShippingForm] = useState<ShippingForm>({
     name: '',
@@ -86,6 +98,90 @@ const CheckoutPage = () => {
     }
   }, [cartItems, authLoading, navigate, orderSuccess]);
 
+  // Save draft order when form changes
+  const saveDraftOrder = useCallback(async () => {
+    if (cartItems.length === 0) return;
+    
+    const sessionId = getSessionId();
+    const addressParts = shippingForm.address.split(',').map(p => p.trim());
+    
+    const draftData = {
+      session_id: sessionId,
+      user_id: user?.id || null,
+      shipping_name: shippingForm.name || null,
+      shipping_phone: shippingForm.phone || null,
+      shipping_street: addressParts[0] || null,
+      shipping_district: addressParts[1] || null,
+      shipping_city: addressParts[2] || null,
+      items: cartItems.map(item => ({
+        id: item.product.id,
+        name: item.product.name,
+        price: item.product.price,
+        quantity: item.quantity,
+        image: item.product.images[0] || null,
+      })),
+      subtotal: cartTotal,
+      shipping_cost: shippingCost,
+      total: total,
+    };
+
+    try {
+      if (draftOrderId.current) {
+        // Update existing draft
+        await supabase
+          .from('draft_orders')
+          .update(draftData)
+          .eq('id', draftOrderId.current);
+      } else {
+        // Check if there's an existing draft for this session
+        const { data: existing } = await supabase
+          .from('draft_orders')
+          .select('id')
+          .eq('session_id', sessionId)
+          .eq('is_converted', false)
+          .maybeSingle();
+        
+        if (existing) {
+          draftOrderId.current = existing.id;
+          await supabase
+            .from('draft_orders')
+            .update(draftData)
+            .eq('id', existing.id);
+        } else {
+          // Create new draft
+          const { data } = await supabase
+            .from('draft_orders')
+            .insert([draftData])
+            .select('id')
+            .single();
+          
+          if (data) {
+            draftOrderId.current = data.id;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error saving draft order:', error);
+    }
+  }, [cartItems, shippingForm, user, cartTotal, shippingCost, total]);
+
+  // Debounced save on form change
+  useEffect(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    saveTimeoutRef.current = setTimeout(() => {
+      saveDraftOrder();
+    }, 1000); // Save after 1 second of no changes
+    
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [shippingForm, cartItems, saveDraftOrder]);
+
   const formatPrice = (price: number) => {
     return `৳${price.toLocaleString('en-BD')}`;
   };
@@ -129,6 +225,20 @@ const CheckoutPage = () => {
         },
         paymentMethod: 'cod',
       });
+      
+      // Mark draft order as converted
+      if (draftOrderId.current) {
+        await supabase
+          .from('draft_orders')
+          .update({ 
+            is_converted: true, 
+            converted_at: new Date().toISOString() 
+          })
+          .eq('id', draftOrderId.current);
+      }
+      
+      // Clear session ID for next checkout
+      localStorage.removeItem('checkout_session_id');
       
       dispatch(clearCart());
       setOrderSuccess(true);

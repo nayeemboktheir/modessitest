@@ -24,6 +24,7 @@ import AdminDashboard from '@/pages/admin/AdminDashboard';
 import AdminProducts from '@/pages/admin/AdminProducts';
 import AdminCategories from '@/pages/admin/AdminCategories';
 import AdminOrders from '@/pages/admin/AdminOrders';
+import AdminIncompleteOrders from '@/pages/admin/AdminIncompleteOrders';
 import AdminUsers from '@/pages/admin/AdminUsers';
 import AdminInventory from '@/pages/admin/AdminInventory';
 import AdminBanners from '@/pages/admin/AdminBanners';
@@ -42,6 +43,7 @@ function AppContent() {
           <Route path="/admin/products" element={<AdminProducts />} />
           <Route path="/admin/categories" element={<AdminCategories />} />
           <Route path="/admin/orders" element={<AdminOrders />} />
+          <Route path="/admin/incomplete-orders" element={<AdminIncompleteOrders />} />
           <Route path="/admin/users" element={<AdminUsers />} />
           <Route path="/admin/inventory" element={<AdminInventory />} />
           <Route path="/admin/banners" element={<AdminBanners />} />

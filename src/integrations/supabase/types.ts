@@ -159,6 +159,66 @@ export type Database = {
           },
         ]
       }
+      draft_orders: {
+        Row: {
+          converted_at: string | null
+          created_at: string
+          id: string
+          is_converted: boolean | null
+          items: Json
+          session_id: string
+          shipping_city: string | null
+          shipping_cost: number | null
+          shipping_district: string | null
+          shipping_name: string | null
+          shipping_phone: string | null
+          shipping_postal_code: string | null
+          shipping_street: string | null
+          subtotal: number | null
+          total: number | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          converted_at?: string | null
+          created_at?: string
+          id?: string
+          is_converted?: boolean | null
+          items?: Json
+          session_id: string
+          shipping_city?: string | null
+          shipping_cost?: number | null
+          shipping_district?: string | null
+          shipping_name?: string | null
+          shipping_phone?: string | null
+          shipping_postal_code?: string | null
+          shipping_street?: string | null
+          subtotal?: number | null
+          total?: number | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          converted_at?: string | null
+          created_at?: string
+          id?: string
+          is_converted?: boolean | null
+          items?: Json
+          session_id?: string
+          shipping_city?: string | null
+          shipping_cost?: number | null
+          shipping_district?: string | null
+          shipping_name?: string | null
+          shipping_phone?: string | null
+          shipping_postal_code?: string | null
+          shipping_street?: string | null
+          subtotal?: number | null
+          total?: number | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string
