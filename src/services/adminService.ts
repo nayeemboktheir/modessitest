@@ -321,3 +321,23 @@ export const deleteBanner = async (id: string) => {
 
   if (error) throw error;
 };
+
+// Draft/Incomplete Orders
+export const getAllDraftOrders = async () => {
+  const { data, error } = await supabase
+    .from('draft_orders')
+    .select('*')
+    .order('updated_at', { ascending: false });
+
+  if (error) throw error;
+  return data;
+};
+
+export const deleteDraftOrder = async (id: string) => {
+  const { error } = await supabase
+    .from('draft_orders')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+};

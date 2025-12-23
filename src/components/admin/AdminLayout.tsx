@@ -35,6 +35,7 @@ const adminNavItems = [
   { title: 'Products', url: '/admin/products', icon: Package },
   { title: 'Categories', url: '/admin/categories', icon: FolderTree },
   { title: 'Orders', url: '/admin/orders', icon: ShoppingCart },
+  { title: 'Incomplete Orders', url: '/admin/incomplete-orders', icon: ShoppingCart },
   { title: 'Users', url: '/admin/users', icon: Users },
   { title: 'Inventory', url: '/admin/inventory', icon: Boxes },
   { title: 'Banners', url: '/admin/banners', icon: Image },
