@@ -2,3 +2,6 @@ project_id = "mwvtnvhaxaymmklipffc"
 
 [functions.place-order]
 verify_jwt = false
+
+[functions.steadfast-courier]
+verify_jwt = false
