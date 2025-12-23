@@ -10,6 +10,7 @@ interface CreateOrderData {
     address: string;
   };
   paymentMethod: 'cod' | 'stripe';
+  shippingZone?: 'inside_dhaka' | 'outside_dhaka';
 }
 
 export const createOrder = async (orderData: CreateOrderData): Promise<Order> => {
@@ -29,6 +30,7 @@ export const createOrder = async (orderData: CreateOrderData): Promise<Order> =>
         phone: orderData.shippingAddress.phone,
         address: orderData.shippingAddress.address,
       },
+      shippingZone: orderData.shippingZone || 'outside_dhaka',
     },
   });
 
