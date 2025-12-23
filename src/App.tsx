@@ -14,6 +14,7 @@ import ProductsPage from "./pages/ProductsPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import AuthPage from "./pages/AuthPage";
 import CartPage from "./pages/CartPage";
+import CheckoutPage from "./pages/CheckoutPage";
 import WishlistPage from "./pages/WishlistPage";
 import NotFound from "./pages/NotFound";
 
@@ -59,6 +60,7 @@ function AppContent() {
         <Route path="/product/:slug" element={<ProductDetailPage />} />
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/cart" element={<CartPage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/wishlist" element={<WishlistPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
