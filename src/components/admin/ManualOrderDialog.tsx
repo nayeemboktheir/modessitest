@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Plus, Minus, Trash2, Star, Loader2 } from 'lucide-react';
+import { Plus, Minus, Trash2, Star, Loader2, Phone, MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Product {
@@ -30,6 +30,94 @@ interface ManualOrderDialogProps {
   onOrderCreated: () => void;
 }
 
+// Bengali to English digit conversion
+const BENGALI_DIGITS: Record<string, string> = {
+  '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4',
+  '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9',
+};
+
+function convertBengaliToEnglish(str: string): string {
+  return str.replace(/[০-৯]/g, (match) => BENGALI_DIGITS[match] || match);
+}
+
+function normalizePhone(phone: string): string {
+  let clean = convertBengaliToEnglish(phone).replace(/\s+/g, '').replace(/[^0-9]/g, '');
+  if (clean.startsWith('88')) clean = clean.substring(2);
+  if (!clean.startsWith('0') && clean.length === 10) clean = `0${clean}`;
+  return clean;
+}
+
+// Parse pasted text to extract name, phone, address
+function parsePastedText(text: string): { phone?: string; name?: string; address?: string } {
+  const converted = convertBengaliToEnglish(text);
+  const lines = converted.split(/[\n,]+/).map(l => l.trim()).filter(Boolean);
+  
+  let phone: string | undefined;
+  let name: string | undefined;
+  let address: string | undefined;
+  
+  // Find phone number (11 digits starting with 01)
+  const phoneRegex = /(?:^|\s|:)(01[3-9][0-9]{8})(?:\s|$|,)/;
+  const phoneMatch = converted.match(phoneRegex);
+  if (phoneMatch) {
+    phone = phoneMatch[1];
+  } else {
+    // Try to find any 11-digit number
+    const anyPhone = converted.match(/\b(01[0-9]{9})\b/);
+    if (anyPhone) phone = anyPhone[1];
+  }
+  
+  // Process remaining parts
+  const remainingParts: string[] = [];
+  for (const line of lines) {
+    const cleanLine = line.replace(/01[0-9]{9}/g, '').trim();
+    if (cleanLine.length > 0) {
+      remainingParts.push(cleanLine);
+    }
+  }
+  
+  // First non-phone part is usually name, rest is address
+  if (remainingParts.length >= 1) {
+    // If first part looks like a name (short, no numbers)
+    const firstPart = remainingParts[0];
+    if (firstPart.length <= 50 && !/\d/.test(firstPart)) {
+      name = firstPart;
+      if (remainingParts.length > 1) {
+        address = remainingParts.slice(1).join(', ');
+      }
+    } else {
+      // Might all be address
+      address = remainingParts.join(', ');
+    }
+  }
+  
+  return { phone, name, address };
+}
+
+// Courier history types
+type Summary = {
+  total_parcel?: number;
+  success_parcel?: number;
+  cancelled_parcel?: number;
+  success_ratio?: number;
+};
+
+type CourierData = {
+  summary?: Summary;
+  pathao?: { summary?: Summary };
+  redx?: { summary?: Summary };
+  steadfast?: { summary?: Summary };
+  paperfly?: { summary?: Summary };
+};
+
+type CourierHistoryApiResponse = {
+  success?: boolean;
+  data?: { courierData?: CourierData };
+  error?: string;
+};
+
+const courierCache = new Map<string, { data?: CourierData; fetchedAt: number }>();
+
 export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: ManualOrderDialogProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
@@ -51,11 +139,54 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
   const [advance, setAdvance] = useState('');
   const [deliveryCharge, setDeliveryCharge] = useState('');
 
+  // Courier history
+  const [courierHistory, setCourierHistory] = useState<CourierData | undefined>();
+  const [loadingCourier, setLoadingCourier] = useState(false);
+
   // Default shipping costs
   const SHIPPING_COSTS = {
     inside_dhaka: 60,
     outside_dhaka: 120,
   };
+
+  const normalizedPhone = useMemo(() => normalizePhone(mobileNumber), [mobileNumber]);
+
+  // Fetch courier history when phone has 11 digits
+  useEffect(() => {
+    if (normalizedPhone.length !== 11) {
+      setCourierHistory(undefined);
+      return;
+    }
+
+    const cached = courierCache.get(normalizedPhone);
+    if (cached?.data) {
+      setCourierHistory(cached.data);
+      return;
+    }
+
+    let mounted = true;
+    (async () => {
+      setLoadingCourier(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('courier-history', {
+          body: { phone: normalizedPhone },
+        });
+        if (error) throw error;
+        const response = data as CourierHistoryApiResponse | undefined;
+        if (response?.error) throw new Error(response.error);
+        
+        const courierData = response?.data?.courierData;
+        courierCache.set(normalizedPhone, { data: courierData, fetchedAt: Date.now() });
+        if (mounted) setCourierHistory(courierData);
+      } catch {
+        // Silent fail
+      } finally {
+        if (mounted) setLoadingCourier(false);
+      }
+    })();
+
+    return () => { mounted = false; };
+  }, [normalizedPhone]);
 
   useEffect(() => {
     if (open) {
@@ -138,6 +269,66 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
     setDeliveryCharge(SHIPPING_COSTS.outside_dhaka.toString());
     setCodeSearch('');
     setNameSearch('');
+    setCourierHistory(undefined);
+  };
+
+  // Handle mobile number input with smart paste parsing
+  const handleMobileInput = (value: string) => {
+    // Convert Bengali to English
+    const converted = convertBengaliToEnglish(value);
+    
+    // Check if this looks like pasted multi-field data
+    if (converted.includes('\n') || converted.includes(',') || converted.length > 20) {
+      const parsed = parsePastedText(value);
+      
+      if (parsed.phone) {
+        setMobileNumber(parsed.phone);
+      }
+      if (parsed.name && !customerName) {
+        setCustomerName(parsed.name);
+      }
+      if (parsed.address && !customerAddress) {
+        setCustomerAddress(parsed.address);
+      }
+    } else {
+      // Just a phone number - normalize and set
+      const cleanNumber = converted.replace(/[^0-9]/g, '');
+      // Limit to 11 digits
+      setMobileNumber(cleanNumber.slice(0, 11));
+    }
+  };
+
+  // Courier history helper component
+  const CourierStats = ({ label, summary }: { label: string; summary?: Summary }) => {
+    const successRate = summary?.success_ratio ?? 0;
+    const total = summary?.total_parcel ?? 0;
+    const success = summary?.success_parcel ?? 0;
+    const cancelled = summary?.cancelled_parcel ?? 0;
+    
+    const getColor = () => {
+      if (total === 0) return 'text-muted-foreground';
+      if (successRate >= 80) return 'text-green-600';
+      if (successRate >= 50) return 'text-amber-600';
+      return 'text-red-600';
+    };
+    
+    return (
+      <div className="border rounded-lg p-3 bg-card">
+        <p className="font-medium text-sm mb-1">{label}</p>
+        <p className={`text-sm font-semibold ${getColor()}`}>
+          Success Rate: {total > 0 ? `${successRate.toFixed(0)}%` : '0%'}
+        </p>
+        <p className="text-xs text-muted-foreground">Total: {total}</p>
+        <p className="text-xs text-muted-foreground">Success: {success}</p>
+        <p className="text-xs text-muted-foreground">Cancelled: {cancelled}</p>
+        <div className="mt-2 h-1 bg-muted rounded-full overflow-hidden">
+          <div 
+            className={`h-full ${successRate >= 80 ? 'bg-green-500' : successRate >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
+            style={{ width: `${Math.min(successRate, 100)}%` }}
+          />
+        </div>
+      </div>
+    );
   };
 
   const handleSubmit = async () => {
@@ -203,17 +394,66 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
         </DialogHeader>
 
         <div className="p-4 space-y-4">
+          {/* Courier History Section */}
+          {(courierHistory || loadingCourier) && normalizedPhone.length === 11 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {loadingCourier ? (
+                <div className="col-span-full flex items-center justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-sm text-muted-foreground">Loading courier history...</span>
+                </div>
+              ) : (
+                <>
+                  <CourierStats label="Overall" summary={courierHistory?.summary} />
+                  <CourierStats label="Pathao" summary={courierHistory?.pathao?.summary} />
+                  <CourierStats label="RedX" summary={courierHistory?.redx?.summary} />
+                  <CourierStats label="Steadfast" summary={courierHistory?.steadfast?.summary} />
+                </>
+              )}
+            </div>
+          )}
+
           {/* Customer Information Row */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="mobileNumber" className="text-sm text-muted-foreground">Mobile Number</Label>
-              <Input
-                id="mobileNumber"
-                value={mobileNumber}
-                onChange={(e) => setMobileNumber(e.target.value)}
-                placeholder="Mobile Number"
-                className="h-9"
-              />
+              <div className="relative">
+                <Input
+                  id="mobileNumber"
+                  value={mobileNumber}
+                  onChange={(e) => handleMobileInput(e.target.value)}
+                  onPaste={(e) => {
+                    e.preventDefault();
+                    const pastedText = e.clipboardData.getData('text');
+                    handleMobileInput(pastedText);
+                  }}
+                  placeholder="Enter or paste info"
+                  className="h-9 pr-16"
+                  maxLength={11}
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {mobileNumber.length === 11 && (
+                    <>
+                      <a 
+                        href={`tel:${mobileNumber}`}
+                        className="p-1 hover:bg-muted rounded text-blue-600"
+                        title="Call"
+                      >
+                        <Phone className="h-4 w-4" />
+                      </a>
+                      <a 
+                        href={`https://wa.me/88${mobileNumber}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1 hover:bg-muted rounded text-green-600"
+                        title="WhatsApp"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                      </a>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="customerName" className="text-sm text-muted-foreground">Name</Label>
