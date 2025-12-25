@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import {
   Table,
@@ -68,15 +69,17 @@ interface Order {
 }
 
 const sourceOptions = [
-  { value: 'web', label: 'Web Order', icon: Globe, color: 'bg-blue-500' },
-  { value: 'manual', label: 'Manual Order', icon: UserPlus, color: 'bg-orange-500' },
+  { value: 'web', label: 'Web Orders', icon: Globe },
+  { value: 'manual', label: 'Manual Orders', icon: UserPlus },
 ];
 
 const statusOptions = [
   { value: 'pending', label: 'Pending', icon: Clock, color: 'bg-yellow-500' },
   { value: 'processing', label: 'Processing', icon: Package, color: 'bg-blue-500' },
+  { value: 'confirmed', label: 'Confirmed', icon: CheckCircle, color: 'bg-teal-500' },
   { value: 'shipped', label: 'Shipped', icon: Truck, color: 'bg-purple-500' },
   { value: 'delivered', label: 'Delivered', icon: CheckCircle, color: 'bg-green-500' },
+  { value: 'returned', label: 'Returned', icon: XCircle, color: 'bg-orange-500' },
   { value: 'cancelled', label: 'Cancelled', icon: XCircle, color: 'bg-red-500' },
 ];
 
@@ -118,13 +121,26 @@ export default function AdminOrders() {
     return matchesSearch && matchesStatus && matchesSource;
   });
 
+  // Calculate counts for each status
+  const getStatusCount = (status: string) => {
+    return orders.filter(order => {
+      const matchesSource = sourceFilter === 'all' || order.order_source === sourceFilter;
+      return order.status === status && matchesSource;
+    }).length;
+  };
+
+  // Calculate counts for each source
+  const getSourceCount = (source: string) => {
+    return orders.filter(order => order.order_source === source).length;
+  };
+
   const getSourceBadge = (source: string) => {
     const sourceOption = sourceOptions.find(s => s.value === source);
     if (!sourceOption) return <Badge variant="outline">{source || 'web'}</Badge>;
 
     const Icon = sourceOption.icon;
     return (
-      <Badge className={`${sourceOption.color} text-white gap-1`}>
+      <Badge variant="outline" className="gap-1">
         <Icon className="h-3 w-3" />
         {sourceOption.label}
       </Badge>
@@ -364,6 +380,66 @@ export default function AdminOrders() {
         <p className="text-muted-foreground">Manage and track customer orders</p>
       </div>
 
+      {/* Source Tabs */}
+      <Tabs value={sourceFilter} onValueChange={setSourceFilter} className="w-full">
+        <TabsList className="h-auto p-1 bg-muted/50">
+          <TabsTrigger 
+            value="all" 
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4"
+          >
+            All Orders
+            <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
+              {orders.length}
+            </Badge>
+          </TabsTrigger>
+          {sourceOptions.map((source) => {
+            const Icon = source.icon;
+            return (
+              <TabsTrigger 
+                key={source.value} 
+                value={source.value}
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 gap-1.5"
+              >
+                <Icon className="h-4 w-4" />
+                {source.label}
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                  {getSourceCount(source.value)}
+                </Badge>
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+      </Tabs>
+
+      {/* Status Tabs */}
+      <div className="overflow-x-auto">
+        <Tabs value={statusFilter} onValueChange={setStatusFilter} className="w-full">
+          <TabsList className="h-auto p-1 bg-muted/50 inline-flex w-auto min-w-full">
+            <TabsTrigger 
+              value="all" 
+              className="data-[state=active]:bg-background data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none px-4"
+            >
+              All
+              <Badge variant="outline" className="ml-2 h-5 px-1.5 text-xs">
+                {orders.filter(o => sourceFilter === 'all' || o.order_source === sourceFilter).length}
+              </Badge>
+            </TabsTrigger>
+            {statusOptions.map((status) => (
+              <TabsTrigger 
+                key={status.value} 
+                value={status.value}
+                className="data-[state=active]:bg-background data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none px-4"
+              >
+                {status.label}
+                <Badge variant="outline" className="ml-2 h-5 px-1.5 text-xs">
+                  {getStatusCount(status.value)}
+                </Badge>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      </div>
+
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-4">
@@ -397,32 +473,6 @@ export default function AdminOrders() {
                   </Button>
                 </>
               )}
-              <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Filter source" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Sources</SelectItem>
-                  {sourceOptions.map((source) => (
-                    <SelectItem key={source.value} value={source.value}>
-                      {source.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Filter status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  {statusOptions.map((status) => (
-                    <SelectItem key={status.value} value={status.value}>
-                      {status.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
           </div>
         </CardHeader>
