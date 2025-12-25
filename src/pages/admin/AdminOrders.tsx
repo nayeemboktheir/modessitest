@@ -96,6 +96,7 @@ export default function AdminOrders() {
   const [sendingToSteadfast, setSendingToSteadfast] = useState(false);
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [bulkSending, setBulkSending] = useState(false);
+  const [bulkStatusChanging, setBulkStatusChanging] = useState(false);
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -343,6 +344,45 @@ export default function AdminOrders() {
     }
   };
 
+  const handleBulkStatusChange = async (newStatus: string) => {
+    if (selectedOrderIds.size === 0) {
+      toast.error('Please select orders to update');
+      return;
+    }
+
+    setBulkStatusChanging(true);
+    try {
+      const ordersToUpdate = orders.filter(o => selectedOrderIds.has(o.id));
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const order of ordersToUpdate) {
+        try {
+          await updateOrderStatus(order.id, newStatus);
+          sendStatusSms(order, newStatus);
+          successCount++;
+        } catch (error) {
+          console.error(`Failed to update order ${order.order_number}:`, error);
+          failCount++;
+        }
+      }
+
+      if (failCount > 0) {
+        toast.warning(`Updated ${successCount} orders, ${failCount} failed`);
+      } else {
+        toast.success(`Successfully updated ${successCount} orders to ${newStatus}`);
+      }
+
+      setSelectedOrderIds(new Set());
+      loadOrders();
+    } catch (error) {
+      console.error('Failed to bulk update status:', error);
+      toast.error('Failed to update order statuses');
+    } finally {
+      setBulkStatusChanging(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const statusOption = statusOptions.find(s => s.value === status);
     if (!statusOption) return <Badge>{status}</Badge>;
@@ -455,6 +495,27 @@ export default function AdminOrders() {
             <div className="flex gap-2">
               {selectedOrderIds.size > 0 && (
                 <>
+                  <Select
+                    onValueChange={handleBulkStatusChange}
+                    disabled={bulkStatusChanging}
+                  >
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder={bulkStatusChanging ? 'Updating...' : `Change ${selectedOrderIds.size} Status`} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {statusOptions.map((status) => {
+                        const Icon = status.icon;
+                        return (
+                          <SelectItem key={status.value} value={status.value}>
+                            <div className="flex items-center gap-2">
+                              <Icon className="h-4 w-4" />
+                              {status.label}
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
                   <Button
                     variant="outline"
                     onClick={() => setIsInvoiceDialogOpen(true)}
