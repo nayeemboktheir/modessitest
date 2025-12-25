@@ -95,7 +95,9 @@ function parsePastedText(text: string): { phone?: string; name?: string; address
 }
 
 // Courier history types
-type Summary = {
+type CourierStats = {
+  name?: string;
+  logo?: string;
   total_parcel?: number;
   success_parcel?: number;
   cancelled_parcel?: number;
@@ -103,11 +105,12 @@ type Summary = {
 };
 
 type CourierData = {
-  summary?: Summary;
-  pathao?: { summary?: Summary };
-  redx?: { summary?: Summary };
-  steadfast?: { summary?: Summary };
-  paperfly?: { summary?: Summary };
+  summary?: CourierStats;
+  pathao?: CourierStats;
+  redx?: CourierStats;
+  steadfast?: CourierStats;
+  paperfly?: CourierStats;
+  parceldex?: CourierStats;
 };
 
 type CourierHistoryApiResponse = {
@@ -298,12 +301,12 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
     }
   };
 
-  // Courier history helper component
-  const CourierStats = ({ label, summary }: { label: string; summary?: Summary }) => {
-    const successRate = summary?.success_ratio ?? 0;
-    const total = summary?.total_parcel ?? 0;
-    const success = summary?.success_parcel ?? 0;
-    const cancelled = summary?.cancelled_parcel ?? 0;
+  // Courier history display component
+  const CourierStatsDisplay = ({ label, stats }: { label: string; stats?: CourierStats }) => {
+    const successRate = stats?.success_ratio ?? 0;
+    const total = stats?.total_parcel ?? 0;
+    const success = stats?.success_parcel ?? 0;
+    const cancelled = stats?.cancelled_parcel ?? 0;
     
     const getColor = () => {
       if (total === 0) return 'text-muted-foreground';
@@ -316,7 +319,7 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
       <div className="border rounded-lg p-3 bg-card">
         <p className="font-medium text-sm mb-1">{label}</p>
         <p className={`text-sm font-semibold ${getColor()}`}>
-          Success Rate: {total > 0 ? `${successRate.toFixed(0)}%` : '0%'}
+          Success Rate: {total > 0 ? `${Math.round(successRate)}%` : '0%'}
         </p>
         <p className="text-xs text-muted-foreground">Total: {total}</p>
         <p className="text-xs text-muted-foreground">Success: {success}</p>
@@ -404,10 +407,10 @@ export function ManualOrderDialog({ open, onOpenChange, onOrderCreated }: Manual
                 </div>
               ) : (
                 <>
-                  <CourierStats label="Overall" summary={courierHistory?.summary} />
-                  <CourierStats label="Pathao" summary={courierHistory?.pathao?.summary} />
-                  <CourierStats label="RedX" summary={courierHistory?.redx?.summary} />
-                  <CourierStats label="Steadfast" summary={courierHistory?.steadfast?.summary} />
+                  <CourierStatsDisplay label="Overall" stats={courierHistory?.summary} />
+                  <CourierStatsDisplay label="Pathao" stats={courierHistory?.pathao} />
+                  <CourierStatsDisplay label="RedX" stats={courierHistory?.redx} />
+                  <CourierStatsDisplay label="Steadfast" stats={courierHistory?.steadfast} />
                 </>
               )}
             </div>
