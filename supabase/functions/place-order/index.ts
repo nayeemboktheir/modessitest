@@ -20,6 +20,8 @@ type PlaceOrderBody = {
   }>;
   shipping: { name: string; phone: string; address: string };
   shippingZone?: 'inside_dhaka' | 'outside_dhaka';
+  notes?: string;
+  orderSource?: 'web' | 'manual';
 };
 
 function isBangladeshPhone(phone: string) {
@@ -183,10 +185,14 @@ Deno.serve(async (req) => {
 
     const subtotal = itemsFinal.reduce((sum, i) => sum + i.price * i.quantity, 0);
     
-    // Shipping cost based on zone: Inside Dhaka = 80 TK, Outside Dhaka = 130 TK
+    // Shipping cost based on zone: Inside Dhaka = 60 TK, Outside Dhaka = 120 TK
     const shippingZone = body.shippingZone || 'outside_dhaka';
-    const shippingCost = shippingZone === 'inside_dhaka' ? 80 : 130;
+    const shippingCost = shippingZone === 'inside_dhaka' ? 60 : 120;
     const total = subtotal + shippingCost;
+    
+    // Parse notes and order source
+    const notes = typeof body.notes === 'string' ? body.notes.trim().slice(0, 500) : null;
+    const orderSource = body.orderSource === 'manual' ? 'manual' : 'web';
 
     const orderId = crypto.randomUUID();
 
@@ -209,7 +215,8 @@ Deno.serve(async (req) => {
         shipping_city: 'N/A',
         shipping_district: 'N/A',
         shipping_postal_code: null,
-        notes: null,
+        notes,
+        order_source: orderSource,
       },
     ]);
 
