@@ -28,7 +28,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Search, Eye, Package, Truck, CheckCircle, XCircle, Clock, Send, Printer } from 'lucide-react';
+import { Search, Eye, Package, Truck, CheckCircle, XCircle, Clock, Send, Printer, Globe, UserPlus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { getAllOrders, updateOrderStatus } from '@/services/adminService';
 import { format } from 'date-fns';
@@ -64,7 +64,13 @@ interface Order {
   notes: string | null;
   created_at: string;
   order_items: OrderItem[];
+  order_source: string;
 }
+
+const sourceOptions = [
+  { value: 'web', label: 'Web Order', icon: Globe, color: 'bg-blue-500' },
+  { value: 'manual', label: 'Manual Order', icon: UserPlus, color: 'bg-orange-500' },
+];
 
 const statusOptions = [
   { value: 'pending', label: 'Pending', icon: Clock, color: 'bg-yellow-500' },
@@ -79,6 +85,7 @@ export default function AdminOrders() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState('');
@@ -107,8 +114,22 @@ export default function AdminOrders() {
     const matchesSearch = order.order_number.toLowerCase().includes(search.toLowerCase()) ||
       order.shipping_name.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesSource = sourceFilter === 'all' || order.order_source === sourceFilter;
+    return matchesSearch && matchesStatus && matchesSource;
   });
+
+  const getSourceBadge = (source: string) => {
+    const sourceOption = sourceOptions.find(s => s.value === source);
+    if (!sourceOption) return <Badge variant="outline">{source || 'web'}</Badge>;
+
+    const Icon = sourceOption.icon;
+    return (
+      <Badge className={`${sourceOption.color} text-white gap-1`}>
+        <Icon className="h-3 w-3" />
+        {sourceOption.label}
+      </Badge>
+    );
+  };
 
   const openOrderDetail = (order: Order) => {
     setSelectedOrder(order);
@@ -376,6 +397,19 @@ export default function AdminOrders() {
                   </Button>
                 </>
               )}
+              <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Filter source" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sources</SelectItem>
+                  {sourceOptions.map((source) => (
+                    <SelectItem key={source.value} value={source.value}>
+                      {source.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder="Filter status" />
@@ -403,6 +437,7 @@ export default function AdminOrders() {
                   />
                 </TableHead>
                 <TableHead>Order</TableHead>
+                <TableHead>Source</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Total</TableHead>
@@ -422,6 +457,7 @@ export default function AdminOrders() {
                     />
                   </TableCell>
                   <TableCell className="font-medium">{order.order_number}</TableCell>
+                  <TableCell>{getSourceBadge(order.order_source)}</TableCell>
                   <TableCell>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -472,7 +508,7 @@ export default function AdminOrders() {
               ))}
               {filteredOrders.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                     No orders found
                   </TableCell>
                 </TableRow>
