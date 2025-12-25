@@ -29,13 +29,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Search, Eye, Package, Truck, CheckCircle, XCircle, Clock, Send, Printer, Globe, UserPlus } from 'lucide-react';
+import { Search, Eye, Package, Truck, CheckCircle, XCircle, Clock, Send, Printer, Globe, UserPlus, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { getAllOrders, updateOrderStatus } from '@/services/adminService';
 import { format } from 'date-fns';
 import { CourierHistoryDialog } from '@/components/admin/CourierHistoryDialog';
 import { CourierHistoryInline } from '@/components/admin/CourierHistoryInline';
 import { InvoicePrintDialog } from '@/components/admin/InvoicePrintDialog';
+import { ManualOrderDialog } from '@/components/admin/ManualOrderDialog';
 
 interface OrderItem {
   id: string;
@@ -98,6 +99,7 @@ export default function AdminOrders() {
   const [bulkSending, setBulkSending] = useState(false);
   const [bulkStatusChanging, setBulkStatusChanging] = useState(false);
   const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
+  const [isManualOrderOpen, setIsManualOrderOpen] = useState(false);
 
   useEffect(() => {
     loadOrders();
@@ -415,9 +417,15 @@ export default function AdminOrders() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-display font-bold">Orders</h1>
-        <p className="text-muted-foreground">Manage and track customer orders</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-display font-bold">Orders</h1>
+          <p className="text-muted-foreground">Manage and track customer orders</p>
+        </div>
+        <Button onClick={() => setIsManualOrderOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Order
+        </Button>
       </div>
 
       {/* Source Tabs */}
@@ -775,6 +783,12 @@ export default function AdminOrders() {
         orders={orders.filter((o) => selectedOrderIds.has(o.id))}
         open={isInvoiceDialogOpen}
         onOpenChange={setIsInvoiceDialogOpen}
+      />
+
+      <ManualOrderDialog
+        open={isManualOrderOpen}
+        onOpenChange={setIsManualOrderOpen}
+        onOrderCreated={loadOrders}
       />
     </div>
   );
