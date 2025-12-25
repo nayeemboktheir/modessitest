@@ -493,6 +493,7 @@ export default function AdminOrders() {
                 <TableHead>Total</TableHead>
                 <TableHead>Payment</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Change Status</TableHead>
                 <TableHead>Tracking</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -528,6 +529,30 @@ export default function AdminOrders() {
                     </Badge>
                   </TableCell>
                   <TableCell>{getStatusBadge(order.status)}</TableCell>
+                  <TableCell>
+                    <Select
+                      value={order.status}
+                      onValueChange={(value) => handleStatusChange(order.id, value)}
+                      disabled={updating}
+                    >
+                      <SelectTrigger className="w-[130px] h-8 text-xs">
+                        <SelectValue placeholder="Change" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statusOptions.map((status) => {
+                          const Icon = status.icon;
+                          return (
+                            <SelectItem key={status.value} value={status.value}>
+                              <div className="flex items-center gap-2">
+                                <Icon className="h-3 w-3" />
+                                {status.label}
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
                   <TableCell>
                     {order.tracking_number ? (
                       <a 
