@@ -1,5 +1,6 @@
 // Lovable Cloud Function: place-order
 // Public endpoint (verify_jwt=false). Uses service role key to safely create orders for guests.
+// Optimized for speed: returns response immediately, handles CAPI/SMS in background.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
 
@@ -13,7 +14,6 @@ type PlaceOrderBody = {
   items: Array<{
     productId: string;
     quantity: number;
-    // Optional fields for non-UUID/mock catalogs (we'll store these and set product_id NULL)
     productName?: string;
     productImage?: string | null;
     price?: number;
@@ -27,6 +27,94 @@ type PlaceOrderBody = {
 function isBangladeshPhone(phone: string) {
   const normalized = phone.replace(/\s/g, '');
   return /^(\+?880)?01[3-9]\d{8}$/.test(normalized);
+}
+
+// Background task: Send Facebook CAPI event
+async function sendCapiEvent(
+  supabaseUrl: string,
+  phone: string,
+  name: string,
+  total: number,
+  itemsFinal: Array<{ productId: string | null; name: string; quantity: number }>,
+  orderId: string
+) {
+  try {
+    console.log('Sending Purchase event to Facebook CAPI...');
+    const capiUrl = `${supabaseUrl}/functions/v1/facebook-capi`;
+    const capiResponse = await fetch(capiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event_name: 'Purchase',
+        user_data: {
+          phone: phone,
+          first_name: name.split(' ')[0] || name,
+          last_name: name.split(' ').slice(1).join(' ') || undefined,
+        },
+        custom_data: {
+          currency: 'BDT',
+          value: total,
+          content_ids: itemsFinal.map((i) => i.productId || i.name),
+          content_type: 'product',
+          num_items: itemsFinal.reduce((sum, i) => sum + i.quantity, 0),
+          order_id: orderId,
+        },
+        event_source_url: 'https://shop.example.com/checkout',
+      }),
+    });
+    const capiResult = await capiResponse.json();
+    console.log('CAPI response:', JSON.stringify(capiResult));
+  } catch (capiError) {
+    console.error('Failed to send CAPI event:', capiError);
+  }
+}
+
+// Background task: Send SMS notification
+async function sendOrderSms(
+  supabaseUrl: string,
+  serviceKey: string,
+  phone: string,
+  name: string,
+  orderNumber: string,
+  total: number,
+  orderId: string
+) {
+  try {
+    const supabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+    
+    const { data: smsSettings } = await supabase
+      .from('admin_settings')
+      .select('key, value')
+      .in('key', ['sms_enabled', 'sms_auto_send_order_placed']);
+
+    const settings: Record<string, string> = {};
+    smsSettings?.forEach((s: { key: string; value: string }) => {
+      settings[s.key] = s.value;
+    });
+
+    if (settings.sms_enabled === 'true' && settings.sms_auto_send_order_placed === 'true') {
+      console.log('Sending order confirmation SMS...');
+      const smsUrl = `${supabaseUrl}/functions/v1/send-sms`;
+      const smsResponse = await fetch(smsUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: phone,
+          template_key: 'order_placed',
+          order_id: orderId,
+          variables: {
+            customer_name: name,
+            order_number: orderNumber,
+            total: total.toString(),
+          },
+        }),
+      });
+      const smsResult = await smsResponse.json();
+      console.log('SMS response:', JSON.stringify(smsResult));
+    }
+  } catch (smsError) {
+    console.error('Failed to send order SMS:', smsError);
+  }
 }
 
 Deno.serve(async (req) => {
@@ -157,17 +245,17 @@ Deno.serve(async (req) => {
     }
 
     const enrichedCustomItems = customItems.map((i) => {
-      const name = (i.productName ?? '').trim();
+      const itemName = (i.productName ?? '').trim();
       const price = Number(i.price);
       const image = i.productImage ? i.productImage.trim() : null;
 
-      if (!name || name.length > 150) return null;
+      if (!itemName || itemName.length > 150) return null;
       if (!Number.isFinite(price) || price <= 0 || price > 10_000_000) return null;
       if (image && image.length > 2048) return null;
 
       return {
         productId: null as string | null,
-        name,
+        name: itemName,
         image,
         price,
         quantity: i.quantity,
@@ -181,7 +269,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const itemsFinal = [...(enrichedDbItems as Array<{ productId: string | null; name: string; image: string | null; price: number; quantity: number }>), ...(enrichedCustomItems as Array<{ productId: string | null; name: string; image: string | null; price: number; quantity: number }>)];
+    const itemsFinal = [
+      ...(enrichedDbItems as Array<{ productId: string | null; name: string; image: string | null; price: number; quantity: number }>),
+      ...(enrichedCustomItems as Array<{ productId: string | null; name: string; image: string | null; price: number; quantity: number }>),
+    ];
 
     const subtotal = itemsFinal.reduce((sum, i) => sum + i.price * i.quantity, 0);
     
@@ -196,47 +287,46 @@ Deno.serve(async (req) => {
 
     const orderId = crypto.randomUUID();
 
-    // Create order
-    const { error: orderError } = await supabase.from('orders').insert([
-      {
-        id: orderId,
-        user_id: body.userId ?? null,
-        order_number: '',
-        status: 'pending',
-        payment_method: 'cod',
-        payment_status: 'pending',
-        subtotal,
-        shipping_cost: shippingCost,
-        discount: 0,
-        total,
-        shipping_name: name,
-        shipping_phone: phone,
-        shipping_street: address,
-        shipping_city: 'N/A',
-        shipping_district: 'N/A',
-        shipping_postal_code: null,
-        notes,
-        order_source: orderSource,
-      },
+    // Create order and items in parallel for speed
+    const [orderResult, itemsResult] = await Promise.all([
+      supabase.from('orders').insert([
+        {
+          id: orderId,
+          user_id: body.userId ?? null,
+          order_number: '',
+          status: 'pending',
+          payment_method: 'cod',
+          payment_status: 'pending',
+          subtotal,
+          shipping_cost: shippingCost,
+          discount: 0,
+          total,
+          shipping_name: name,
+          shipping_phone: phone,
+          shipping_street: address,
+          shipping_city: 'N/A',
+          shipping_district: 'N/A',
+          shipping_postal_code: null,
+          notes,
+          order_source: orderSource,
+        },
+      ]),
+      supabase.from('order_items').insert(
+        itemsFinal.map((i) => ({
+          order_id: orderId,
+          product_id: i.productId,
+          product_name: i.name,
+          product_image: i.image,
+          price: i.price,
+          quantity: i.quantity,
+        }))
+      ),
     ]);
 
-    if (orderError) throw orderError;
+    if (orderResult.error) throw orderResult.error;
+    if (itemsResult.error) throw itemsResult.error;
 
-    // Create order items
-    const { error: itemsError } = await supabase.from('order_items').insert(
-      itemsFinal.map((i) => ({
-        order_id: orderId,
-        product_id: i.productId,
-        product_name: i.name,
-        product_image: i.image,
-        price: i.price,
-        quantity: i.quantity,
-      }))
-    );
-
-    if (itemsError) throw itemsError;
-
-    // Fetch generated order number
+    // Fetch generated order number (fast query)
     const { data: orderData } = await supabase
       .from('orders')
       .select('order_number')
@@ -245,77 +335,28 @@ Deno.serve(async (req) => {
     
     const orderNumber = orderData?.order_number || orderId;
 
-    // Send Purchase event to Facebook CAPI
-    try {
-      console.log('Sending Purchase event to Facebook CAPI...');
-      const capiUrl = `${supabaseUrl}/functions/v1/facebook-capi`;
-      const capiResponse = await fetch(capiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event_name: 'Purchase',
-          user_data: {
-            phone: phone,
-            first_name: name.split(' ')[0] || name,
-            last_name: name.split(' ').slice(1).join(' ') || undefined,
-          },
-          custom_data: {
-            currency: 'BDT',
-            value: total,
-            content_ids: itemsFinal.map((i) => i.productId || i.name),
-            content_type: 'product',
-            num_items: itemsFinal.reduce((sum, i) => sum + i.quantity, 0),
-            order_id: orderId,
-          },
-          event_source_url: 'https://shop.example.com/checkout',
-        }),
-      });
-      const capiResult = await capiResponse.json();
-      console.log('CAPI response:', JSON.stringify(capiResult));
-    } catch (capiError) {
-      console.error('Failed to send CAPI event:', capiError);
+    // Schedule background tasks using EdgeRuntime.waitUntil
+    // These run after the response is sent, so the user doesn't wait
+    const backgroundTasks = Promise.all([
+      sendCapiEvent(supabaseUrl, phone, name, total, itemsFinal, orderId),
+      sendOrderSms(supabaseUrl, serviceKey, phone, name, orderNumber, total, orderId),
+    ]);
+
+    // Use EdgeRuntime.waitUntil to run tasks in background after response
+    // @ts-ignore - EdgeRuntime is available in Deno Deploy
+    if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(backgroundTasks);
+    } else {
+      // Fallback: don't await, let it run in background
+      backgroundTasks.catch(err => console.error('Background task error:', err));
     }
 
-    // Send order confirmation SMS
-    try {
-      // Check if auto-send is enabled
-      const { data: smsSettings } = await supabase
-        .from('admin_settings')
-        .select('key, value')
-        .in('key', ['sms_enabled', 'sms_auto_send_order_placed']);
-
-      const settings: Record<string, string> = {};
-      smsSettings?.forEach((s: { key: string; value: string }) => {
-        settings[s.key] = s.value;
-      });
-
-      if (settings.sms_enabled === 'true' && settings.sms_auto_send_order_placed === 'true') {
-        console.log('Sending order confirmation SMS...');
-        const smsUrl = `${supabaseUrl}/functions/v1/send-sms`;
-        const smsResponse = await fetch(smsUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            phone: phone,
-            template_key: 'order_placed',
-            order_id: orderId,
-            variables: {
-              customer_name: name,
-              order_number: orderNumber,
-              total: total.toString(),
-            },
-          }),
-        });
-        const smsResult = await smsResponse.json();
-        console.log('SMS response:', JSON.stringify(smsResult));
-      }
-    } catch (smsError) {
-      console.error('Failed to send order SMS:', smsError);
-    }
-
+    // Return immediately - background tasks will continue
     return new Response(
       JSON.stringify({
         orderId,
+        orderNumber,
         subtotal,
         shippingCost,
         total,
