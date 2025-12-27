@@ -287,44 +287,45 @@ Deno.serve(async (req) => {
 
     const orderId = crypto.randomUUID();
 
-    // Create order and items in parallel for speed
-    const [orderResult, itemsResult] = await Promise.all([
-      supabase.from('orders').insert([
-        {
-          id: orderId,
-          user_id: body.userId ?? null,
-          order_number: '',
-          status: 'pending',
-          payment_method: 'cod',
-          payment_status: 'pending',
-          subtotal,
-          shipping_cost: shippingCost,
-          discount: 0,
-          total,
-          shipping_name: name,
-          shipping_phone: phone,
-          shipping_street: address,
-          shipping_city: 'N/A',
-          shipping_district: 'N/A',
-          shipping_postal_code: null,
-          notes,
-          order_source: orderSource,
-        },
-      ]),
-      supabase.from('order_items').insert(
-        itemsFinal.map((i) => ({
-          order_id: orderId,
-          product_id: i.productId,
-          product_name: i.name,
-          product_image: i.image,
-          price: i.price,
-          quantity: i.quantity,
-        }))
-      ),
+    // Insert order first (order_items has FK to orders)
+    const { error: orderError } = await supabase.from('orders').insert([
+      {
+        id: orderId,
+        user_id: body.userId ?? null,
+        order_number: '',
+        status: 'pending',
+        payment_method: 'cod',
+        payment_status: 'pending',
+        subtotal,
+        shipping_cost: shippingCost,
+        discount: 0,
+        total,
+        shipping_name: name,
+        shipping_phone: phone,
+        shipping_street: address,
+        shipping_city: 'N/A',
+        shipping_district: 'N/A',
+        shipping_postal_code: null,
+        notes,
+        order_source: orderSource,
+      },
     ]);
 
-    if (orderResult.error) throw orderResult.error;
-    if (itemsResult.error) throw itemsResult.error;
+    if (orderError) throw orderError;
+
+    // Now insert order items
+    const { error: itemsError } = await supabase.from('order_items').insert(
+      itemsFinal.map((i) => ({
+        order_id: orderId,
+        product_id: i.productId,
+        product_name: i.name,
+        product_image: i.image,
+        price: i.price,
+        quantity: i.quantity,
+      }))
+    );
+
+    if (itemsError) throw itemsError;
 
     // Fetch generated order number (fast query)
     const { data: orderData } = await supabase
