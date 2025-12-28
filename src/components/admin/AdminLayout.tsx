@@ -41,6 +41,7 @@ const adminNavItems = [
   { title: 'Categories', url: '/admin/categories', icon: FolderTree },
   { title: 'Orders', url: '/admin/orders', icon: ShoppingCart },
   { title: 'Incomplete Orders', url: '/admin/incomplete-orders', icon: ShoppingCart },
+  { title: 'Landing Pages', url: '/admin/landing-pages', icon: Megaphone },
   { title: 'Courier History', url: '/admin/courier-history', icon: History },
   { title: 'Courier Settings', url: '/admin/courier-settings', icon: Truck },
   { title: 'Users', url: '/admin/users', icon: Users },

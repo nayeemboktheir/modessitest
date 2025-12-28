@@ -34,6 +34,9 @@ import AdminBanners from '@/pages/admin/AdminBanners';
 import AdminShopSettings from '@/pages/admin/AdminShopSettings';
 import AdminMarketing from '@/pages/admin/AdminMarketing';
 import AdminSMS from '@/pages/admin/AdminSMS';
+import AdminLandingPages from '@/pages/admin/AdminLandingPages';
+import AdminLandingPageEditor from '@/pages/admin/AdminLandingPageEditor';
+import LandingPage from '@/pages/LandingPage';
 
 const queryClient = new QueryClient();
 
@@ -50,6 +53,8 @@ function AppContent() {
           <Route path="/admin/categories" element={<AdminCategories />} />
           <Route path="/admin/orders" element={<AdminOrders />} />
           <Route path="/admin/incomplete-orders" element={<AdminIncompleteOrders />} />
+          <Route path="/admin/landing-pages" element={<AdminLandingPages />} />
+          <Route path="/admin/landing-pages/:id" element={<AdminLandingPageEditor />} />
           <Route path="/admin/courier-history" element={<AdminCourierHistory />} />
           <Route path="/admin/courier-settings" element={<AdminCourierSettings />} />
           <Route path="/admin/users" element={<AdminUsers />} />
@@ -60,6 +65,17 @@ function AppContent() {
           <Route path="/admin/shop-settings" element={<AdminShopSettings />} />
         </Routes>
       </AdminLayout>
+    );
+  }
+
+  // Check if it's a landing page route (no header/footer)
+  const isLandingPageRoute = location.pathname.startsWith('/lp/');
+
+  if (isLandingPageRoute) {
+    return (
+      <Routes>
+        <Route path="/lp/:slug" element={<LandingPage />} />
+      </Routes>
     );
   }
 
