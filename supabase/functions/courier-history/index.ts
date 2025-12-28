@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -48,6 +48,9 @@ serve(async (req) => {
     
     console.log('Calling BD Courier API:', apiUrl);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
@@ -55,7 +58,8 @@ serve(async (req) => {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeoutId));
 
     const responseText = await response.text();
     console.log('BD Courier API response status:', response.status);
@@ -105,6 +109,23 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     console.error('Error in courier-history function:', error);
+
+    // If upstream is slow/unreachable, fail gracefully (don't break admin UI)
+    const isAbort =
+      (error instanceof DOMException && error.name === 'AbortError') ||
+      (error instanceof Error && /abort/i.test(error.message));
+
+    if (isAbort) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          blocked: true,
+          message: 'Courier history service timed out. Please try again later or check manually at bdcourier.com',
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return new Response(
       JSON.stringify({ error: errorMessage }),
