@@ -103,7 +103,7 @@ const ProductsPage = () => {
     }
 
     return result;
-  }, [categoryFilter, searchQuery, sortBy, minPrice, maxPrice, isFeatured, isNew]);
+  }, [products, categoryFilter, searchQuery, sortBy, minPrice, maxPrice, isFeatured, isNew]);
 
   const updateFilter = (key: string, value: string | null) => {
     const newParams = new URLSearchParams(searchParams);
