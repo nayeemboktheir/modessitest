@@ -65,13 +65,14 @@ serve(async (req) => {
       // Check if it's a Cloudflare challenge (bot protection)
       if (response.status === 403 && responseText.includes('challenge-platform')) {
         console.error('BD Courier API is blocking requests (Cloudflare protection)');
+        // Return 200 with blocked flag so frontend handles it gracefully
         return new Response(
           JSON.stringify({ 
-            error: 'BD Courier service is currently unavailable',
+            success: false,
             blocked: true,
             message: 'The courier history service is temporarily blocked. Please try again later or check manually at bdcourier.com'
           }),
-          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       
