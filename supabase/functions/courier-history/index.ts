@@ -62,6 +62,19 @@ serve(async (req) => {
     console.log('BD Courier API response:', responseText);
 
     if (!response.ok) {
+      // Check if it's a Cloudflare challenge (bot protection)
+      if (response.status === 403 && responseText.includes('challenge-platform')) {
+        console.error('BD Courier API is blocking requests (Cloudflare protection)');
+        return new Response(
+          JSON.stringify({ 
+            error: 'BD Courier service is currently unavailable',
+            blocked: true,
+            message: 'The courier history service is temporarily blocked. Please try again later or check manually at bdcourier.com'
+          }),
+          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       return new Response(
         JSON.stringify({ 
           error: 'Failed to fetch courier history',

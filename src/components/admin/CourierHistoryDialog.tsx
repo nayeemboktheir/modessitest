@@ -66,6 +66,12 @@ export function CourierHistoryDialog({ phone, customerName }: CourierHistoryDial
         throw new Error(fetchError.message);
       }
 
+      // Handle blocked/service unavailable
+      if (response?.blocked) {
+        setError(response.message || "Service temporarily unavailable");
+        return;
+      }
+
       if (response?.error) {
         throw new Error(response.error);
       }
@@ -76,7 +82,6 @@ export function CourierHistoryDialog({ phone, customerName }: CourierHistoryDial
       console.error("Failed to fetch courier history:", err);
       const errorMessage = err instanceof Error ? err.message : "Failed to fetch courier history";
       setError(errorMessage);
-      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
