@@ -42,7 +42,7 @@ const adminNavItems = [
   { title: 'Orders', url: '/admin/orders', icon: ShoppingCart },
   { title: 'Incomplete Orders', url: '/admin/incomplete-orders', icon: ShoppingCart },
   { title: 'Courier History', url: '/admin/courier-history', icon: History },
-  { title: 'Steadfast', url: '/admin/steadfast', icon: Truck },
+  { title: 'Courier Settings', url: '/admin/courier-settings', icon: Truck },
   { title: 'Users', url: '/admin/users', icon: Users },
   { title: 'Inventory', url: '/admin/inventory', icon: Boxes },
   { title: 'Banners', url: '/admin/banners', icon: Image },
