@@ -90,6 +90,7 @@ export function CourierHistoryInline({
   const normalized = useMemo(() => normalizePhone(phone), [phone]);
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<Summary | undefined>(() => cache.get(normalized)?.summary);
+  const [blocked, setBlocked] = useState(false);
 
   useEffect(() => {
     const cached = cache.get(normalized);
@@ -108,7 +109,14 @@ export function CourierHistoryInline({
 
         if (error) throw error;
 
-        const response = data as CourierHistoryApiResponse | undefined;
+        const response = data as CourierHistoryApiResponse & { blocked?: boolean } | undefined;
+        
+        // Handle blocked/service unavailable
+        if (response?.blocked) {
+          if (mounted) setBlocked(true);
+          return;
+        }
+        
         if (response?.error) throw new Error(response.error);
 
         const s = response?.data?.courierData?.summary;
@@ -129,6 +137,15 @@ export function CourierHistoryInline({
   const success = summary?.success_ratio;
   const delivered = summary?.success_parcel ?? 0;
   const cancelled = summary?.cancelled_parcel ?? 0;
+
+  // If service is blocked, show nothing or minimal indicator
+  if (blocked) {
+    return (
+      <div className={cn("flex items-center gap-2 text-xs text-muted-foreground", className)}>
+        <span>Service unavailable</span>
+      </div>
+    );
+  }
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
