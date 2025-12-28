@@ -62,10 +62,13 @@ const ProductCard = ({ product, index = 0 }: ProductCardProps) => {
           {/* Image Container */}
           <div className="relative aspect-square overflow-hidden bg-muted">
             <img
-              src={product.images[0]}
+              src={product.images?.[0] || '/placeholder.svg'}
               alt={product.name}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               loading="lazy"
+              onError={(e) => {
+                e.currentTarget.src = '/placeholder.svg';
+              }}
             />
 
             {/* Badges */}
