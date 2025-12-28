@@ -18,11 +18,19 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Section, SectionType } from "./types";
+import { SectionType } from "./types";
+
+// Use a generic section type for the editor to avoid discriminated union issues
+interface EditableSection {
+  id: string;
+  type: SectionType;
+  order: number;
+  settings: Record<string, unknown>;
+}
 
 interface SectionEditorProps {
-  section: Section;
-  onUpdate: (section: Section) => void;
+  section: EditableSection;
+  onUpdate: (section: EditableSection) => void;
   onDelete: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
