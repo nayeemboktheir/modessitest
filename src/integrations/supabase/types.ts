@@ -293,6 +293,9 @@ export type Database = {
       }
       landing_pages: {
         Row: {
+          checkout_button_text: string | null
+          checkout_enabled: boolean | null
+          checkout_title: string | null
           created_at: string
           cta_background_color: string | null
           cta_button_link: string | null
@@ -322,14 +325,19 @@ export type Database = {
           product_ids: string[] | null
           products_enabled: boolean | null
           products_title: string | null
+          sections: Json | null
           slug: string
           testimonials: Json | null
           testimonials_enabled: boolean | null
           testimonials_title: string | null
+          theme_settings: Json | null
           title: string
           updated_at: string
         }
         Insert: {
+          checkout_button_text?: string | null
+          checkout_enabled?: boolean | null
+          checkout_title?: string | null
           created_at?: string
           cta_background_color?: string | null
           cta_button_link?: string | null
@@ -359,14 +367,19 @@ export type Database = {
           product_ids?: string[] | null
           products_enabled?: boolean | null
           products_title?: string | null
+          sections?: Json | null
           slug: string
           testimonials?: Json | null
           testimonials_enabled?: boolean | null
           testimonials_title?: string | null
+          theme_settings?: Json | null
           title: string
           updated_at?: string
         }
         Update: {
+          checkout_button_text?: string | null
+          checkout_enabled?: boolean | null
+          checkout_title?: string | null
           created_at?: string
           cta_background_color?: string | null
           cta_button_link?: string | null
@@ -396,10 +409,12 @@ export type Database = {
           product_ids?: string[] | null
           products_enabled?: boolean | null
           products_title?: string | null
+          sections?: Json | null
           slug?: string
           testimonials?: Json | null
           testimonials_enabled?: boolean | null
           testimonials_title?: string | null
+          theme_settings?: Json | null
           title?: string
           updated_at?: string
         }
