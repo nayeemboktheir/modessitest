@@ -291,6 +291,120 @@ export type Database = {
         }
         Relationships: []
       }
+      landing_pages: {
+        Row: {
+          created_at: string
+          cta_background_color: string | null
+          cta_button_link: string | null
+          cta_button_text: string | null
+          cta_enabled: boolean | null
+          cta_subtitle: string | null
+          cta_title: string | null
+          custom_css: string | null
+          description: string | null
+          faq_enabled: boolean | null
+          faq_title: string | null
+          faqs: Json | null
+          features: Json | null
+          features_enabled: boolean | null
+          features_title: string | null
+          hero_button_link: string | null
+          hero_button_style: string | null
+          hero_button_text: string | null
+          hero_image: string | null
+          hero_subtitle: string | null
+          hero_title: string | null
+          id: string
+          is_active: boolean | null
+          is_published: boolean | null
+          meta_description: string | null
+          meta_title: string | null
+          product_ids: string[] | null
+          products_enabled: boolean | null
+          products_title: string | null
+          slug: string
+          testimonials: Json | null
+          testimonials_enabled: boolean | null
+          testimonials_title: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cta_background_color?: string | null
+          cta_button_link?: string | null
+          cta_button_text?: string | null
+          cta_enabled?: boolean | null
+          cta_subtitle?: string | null
+          cta_title?: string | null
+          custom_css?: string | null
+          description?: string | null
+          faq_enabled?: boolean | null
+          faq_title?: string | null
+          faqs?: Json | null
+          features?: Json | null
+          features_enabled?: boolean | null
+          features_title?: string | null
+          hero_button_link?: string | null
+          hero_button_style?: string | null
+          hero_button_text?: string | null
+          hero_image?: string | null
+          hero_subtitle?: string | null
+          hero_title?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_published?: boolean | null
+          meta_description?: string | null
+          meta_title?: string | null
+          product_ids?: string[] | null
+          products_enabled?: boolean | null
+          products_title?: string | null
+          slug: string
+          testimonials?: Json | null
+          testimonials_enabled?: boolean | null
+          testimonials_title?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cta_background_color?: string | null
+          cta_button_link?: string | null
+          cta_button_text?: string | null
+          cta_enabled?: boolean | null
+          cta_subtitle?: string | null
+          cta_title?: string | null
+          custom_css?: string | null
+          description?: string | null
+          faq_enabled?: boolean | null
+          faq_title?: string | null
+          faqs?: Json | null
+          features?: Json | null
+          features_enabled?: boolean | null
+          features_title?: string | null
+          hero_button_link?: string | null
+          hero_button_style?: string | null
+          hero_button_text?: string | null
+          hero_image?: string | null
+          hero_subtitle?: string | null
+          hero_title?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_published?: boolean | null
+          meta_description?: string | null
+          meta_title?: string | null
+          product_ids?: string[] | null
+          products_enabled?: boolean | null
+          products_title?: string | null
+          slug?: string
+          testimonials?: Json | null
+          testimonials_enabled?: boolean | null
+          testimonials_title?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string
