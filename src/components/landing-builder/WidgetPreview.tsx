@@ -166,7 +166,7 @@ export const WidgetPreview = ({ widget, theme }: WidgetPreviewProps) => {
             </span>
             {settings.originalPrice && (
               <span className="text-lg line-through text-muted-foreground">
-                {(settings.currency as string) || '৳'}{settings.originalPrice}
+                {(settings.currency as string) || '৳'}{String(settings.originalPrice)}
               </span>
             )}
           </div>
