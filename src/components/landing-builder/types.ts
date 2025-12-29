@@ -1,4 +1,76 @@
-export type SectionType = 
+// ============= ELEMENTOR-LIKE PAGE BUILDER TYPES =============
+
+// Widget types that can be placed inside columns
+export type WidgetType = 
+  | 'heading'
+  | 'text'
+  | 'image'
+  | 'button'
+  | 'spacer'
+  | 'divider'
+  | 'video'
+  | 'icon-box'
+  | 'image-box'
+  | 'counter'
+  | 'countdown'
+  | 'form'
+  | 'testimonial'
+  | 'faq-item'
+  | 'price-box'
+  | 'gallery'
+  | 'html';
+
+// Column layout options for rows
+export type ColumnLayout = 
+  | '100'           // 1 column full width
+  | '50-50'         // 2 equal columns
+  | '33-33-33'      // 3 equal columns
+  | '25-25-25-25'   // 4 equal columns
+  | '66-33'         // 2 columns: 2/3 + 1/3
+  | '33-66'         // 2 columns: 1/3 + 2/3
+  | '25-50-25'      // 3 columns: 1/4 + 1/2 + 1/4
+  | '25-75'         // 2 columns: 1/4 + 3/4
+  | '75-25';        // 2 columns: 3/4 + 1/4
+
+// Widget base interface
+export interface Widget {
+  id: string;
+  type: WidgetType;
+  settings: Record<string, unknown>;
+}
+
+// Column containing widgets
+export interface Column {
+  id: string;
+  widgets: Widget[];
+  settings: {
+    verticalAlign: 'top' | 'center' | 'bottom';
+    padding: string;
+    backgroundColor: string;
+  };
+}
+
+// Row containing columns
+export interface Row {
+  id: string;
+  type: 'row';
+  layout: ColumnLayout;
+  columns: Column[];
+  settings: {
+    backgroundColor: string;
+    backgroundImage: string;
+    backgroundOverlay: string;
+    padding: string;
+    margin: string;
+    minHeight: string;
+    maxWidth: 'full' | 'boxed';
+    verticalAlign: 'top' | 'center' | 'bottom';
+    gap: string;
+  };
+}
+
+// Legacy section types (for backward compatibility)
+export type LegacySectionType = 
   | 'hero-product'
   | 'image-gallery'
   | 'feature-badges'
@@ -14,6 +86,20 @@ export type SectionType =
   | 'divider'
   | 'spacer';
 
+// A page element can be either a Row (new) or a legacy Section
+export type PageElement = Row | LegacySection;
+
+// Legacy section interface (for backward compatibility)
+export interface LegacySection {
+  id: string;
+  type: LegacySectionType;
+  order: number;
+  settings: Record<string, unknown>;
+}
+
+// Keep old types for backward compatibility
+export type SectionType = LegacySectionType;
+export type Section = LegacySection;
 export interface BaseSection {
   id: string;
   type: SectionType;
@@ -21,176 +107,7 @@ export interface BaseSection {
   settings: Record<string, unknown>;
 }
 
-export interface HeroProductSection extends BaseSection {
-  type: 'hero-product';
-  settings: {
-    images: string[];
-    title: string;
-    subtitle: string;
-    price: string;
-    originalPrice: string;
-    buttonText: string;
-    buttonLink: string;
-    badges: Array<{ text: string; subtext: string }>;
-    backgroundColor: string;
-    textColor: string;
-    layout: 'left-image' | 'right-image' | 'center';
-  };
-}
-
-export interface ImageGallerySection extends BaseSection {
-  type: 'image-gallery';
-  settings: {
-    images: string[];
-    columns: number;
-    gap: string;
-    aspectRatio: 'square' | 'portrait' | 'landscape' | 'auto';
-  };
-}
-
-export interface FeatureBadgesSection extends BaseSection {
-  type: 'feature-badges';
-  settings: {
-    title: string;
-    badges: Array<{ icon: string; title: string; description: string }>;
-    columns: number;
-    backgroundColor: string;
-    textColor: string;
-  };
-}
-
-export interface TextBlockSection extends BaseSection {
-  type: 'text-block';
-  settings: {
-    content: string;
-    alignment: 'left' | 'center' | 'right';
-    fontSize: string;
-    backgroundColor: string;
-    textColor: string;
-    padding: string;
-  };
-}
-
-export interface ProductInfoSection extends BaseSection {
-  type: 'product-info';
-  settings: {
-    productId: string;
-    showPrice: boolean;
-    showDescription: boolean;
-    showImages: boolean;
-    layout: 'horizontal' | 'vertical';
-  };
-}
-
-export interface CheckoutFormSection extends BaseSection {
-  type: 'checkout-form';
-  settings: {
-    title: string;
-    buttonText: string;
-    productId: string;
-    fields: Array<{ name: string; label: string; required: boolean; type: string }>;
-    backgroundColor: string;
-    accentColor: string;
-  };
-}
-
-export interface CTABannerSection extends BaseSection {
-  type: 'cta-banner';
-  settings: {
-    title: string;
-    subtitle: string;
-    buttonText: string;
-    buttonLink: string;
-    backgroundColor: string;
-    textColor: string;
-  };
-}
-
-export interface TestimonialsSection extends BaseSection {
-  type: 'testimonials';
-  settings: {
-    title: string;
-    items: Array<{ name: string; role: string; content: string; avatar: string }>;
-    layout: 'grid' | 'carousel';
-    columns: number;
-  };
-}
-
-export interface FAQSection extends BaseSection {
-  type: 'faq';
-  settings: {
-    title: string;
-    items: Array<{ question: string; answer: string }>;
-    backgroundColor: string;
-  };
-}
-
-export interface ImageTextSection extends BaseSection {
-  type: 'image-text';
-  settings: {
-    image: string;
-    title: string;
-    description: string;
-    buttonText: string;
-    buttonLink: string;
-    imagePosition: 'left' | 'right';
-    backgroundColor: string;
-  };
-}
-
-export interface VideoSection extends BaseSection {
-  type: 'video';
-  settings: {
-    videoUrl: string;
-    autoplay: boolean;
-    controls: boolean;
-    loop: boolean;
-  };
-}
-
-export interface CountdownSection extends BaseSection {
-  type: 'countdown';
-  settings: {
-    title: string;
-    endDate: string;
-    backgroundColor: string;
-    textColor: string;
-  };
-}
-
-export interface DividerSection extends BaseSection {
-  type: 'divider';
-  settings: {
-    style: 'solid' | 'dashed' | 'dotted';
-    color: string;
-    thickness: string;
-    width: string;
-  };
-}
-
-export interface SpacerSection extends BaseSection {
-  type: 'spacer';
-  settings: {
-    height: string;
-  };
-}
-
-export type Section = 
-  | HeroProductSection
-  | ImageGallerySection
-  | FeatureBadgesSection
-  | TextBlockSection
-  | ProductInfoSection
-  | CheckoutFormSection
-  | CTABannerSection
-  | TestimonialsSection
-  | FAQSection
-  | ImageTextSection
-  | VideoSection
-  | CountdownSection
-  | DividerSection
-  | SpacerSection;
-
+// Theme settings
 export interface ThemeSettings {
   primaryColor: string;
   secondaryColor: string;
@@ -213,6 +130,223 @@ export const DEFAULT_THEME: ThemeSettings = {
   buttonStyle: 'filled',
 };
 
+// Column layout configurations
+export const COLUMN_LAYOUTS: Record<ColumnLayout, { label: string; widths: string[] }> = {
+  '100': { label: '1 Column', widths: ['100%'] },
+  '50-50': { label: '2 Columns', widths: ['50%', '50%'] },
+  '33-33-33': { label: '3 Columns', widths: ['33.333%', '33.333%', '33.333%'] },
+  '25-25-25-25': { label: '4 Columns', widths: ['25%', '25%', '25%', '25%'] },
+  '66-33': { label: '2 Columns (2/3 + 1/3)', widths: ['66.666%', '33.333%'] },
+  '33-66': { label: '2 Columns (1/3 + 2/3)', widths: ['33.333%', '66.666%'] },
+  '25-50-25': { label: '3 Columns (1/4 + 1/2 + 1/4)', widths: ['25%', '50%', '25%'] },
+  '25-75': { label: '2 Columns (1/4 + 3/4)', widths: ['25%', '75%'] },
+  '75-25': { label: '2 Columns (3/4 + 1/4)', widths: ['75%', '25%'] },
+};
+
+// Default widget templates
+export const WIDGET_TEMPLATES: Record<WidgetType, Partial<Widget>> = {
+  'heading': {
+    type: 'heading',
+    settings: {
+      text: 'Heading',
+      tag: 'h2',
+      alignment: 'center',
+      color: '',
+      fontSize: '',
+    },
+  },
+  'text': {
+    type: 'text',
+    settings: {
+      content: 'Enter your text here...',
+      alignment: 'left',
+      color: '',
+      fontSize: '16px',
+    },
+  },
+  'image': {
+    type: 'image',
+    settings: {
+      src: '',
+      alt: '',
+      width: '100%',
+      alignment: 'center',
+      link: '',
+      borderRadius: '',
+    },
+  },
+  'button': {
+    type: 'button',
+    settings: {
+      text: 'Click Here',
+      link: '#',
+      style: 'filled',
+      size: 'md',
+      alignment: 'center',
+      backgroundColor: '',
+      textColor: '',
+      fullWidth: false,
+    },
+  },
+  'spacer': {
+    type: 'spacer',
+    settings: {
+      height: '40px',
+    },
+  },
+  'divider': {
+    type: 'divider',
+    settings: {
+      style: 'solid',
+      color: '#e5e7eb',
+      thickness: '1px',
+      width: '100%',
+    },
+  },
+  'video': {
+    type: 'video',
+    settings: {
+      url: '',
+      autoplay: false,
+      loop: false,
+      controls: true,
+    },
+  },
+  'icon-box': {
+    type: 'icon-box',
+    settings: {
+      icon: '⭐',
+      title: 'Feature Title',
+      description: 'Feature description goes here',
+      iconPosition: 'top',
+      alignment: 'center',
+    },
+  },
+  'image-box': {
+    type: 'image-box',
+    settings: {
+      image: '',
+      title: 'Image Box Title',
+      description: 'Description text',
+      link: '',
+    },
+  },
+  'counter': {
+    type: 'counter',
+    settings: {
+      number: '100',
+      suffix: '+',
+      title: 'Happy Customers',
+      duration: 2000,
+    },
+  },
+  'countdown': {
+    type: 'countdown',
+    settings: {
+      endDate: '',
+      title: 'Offer Ends In',
+      backgroundColor: '#ef4444',
+      textColor: '#ffffff',
+    },
+  },
+  'form': {
+    type: 'form',
+    settings: {
+      title: 'অর্ডার করতে নিচের ফর্মটি পূরণ করুন',
+      buttonText: 'অর্ডার কনফার্ম করুন',
+      productId: '',
+      backgroundColor: '#f9fafb',
+      accentColor: '#ef4444',
+    },
+  },
+  'testimonial': {
+    type: 'testimonial',
+    settings: {
+      name: 'Customer Name',
+      role: 'Verified Buyer',
+      content: 'This is an amazing product!',
+      avatar: '',
+      rating: 5,
+    },
+  },
+  'faq-item': {
+    type: 'faq-item',
+    settings: {
+      question: 'What is this product?',
+      answer: 'This is a great product that solves your problems.',
+    },
+  },
+  'price-box': {
+    type: 'price-box',
+    settings: {
+      title: 'Product Name',
+      price: '1350',
+      originalPrice: '1500',
+      currency: '৳',
+      buttonText: 'অর্ডার করুন',
+      buttonLink: '#checkout',
+      features: [],
+    },
+  },
+  'gallery': {
+    type: 'gallery',
+    settings: {
+      images: [],
+      columns: 3,
+      gap: '8px',
+    },
+  },
+  'html': {
+    type: 'html',
+    settings: {
+      code: '<div>Custom HTML</div>',
+    },
+  },
+};
+
+// Default row template
+export const createDefaultRow = (layout: ColumnLayout = '100'): Row => {
+  const columnCount = COLUMN_LAYOUTS[layout].widths.length;
+  const columns: Column[] = Array.from({ length: columnCount }, () => ({
+    id: crypto.randomUUID(),
+    widgets: [],
+    settings: {
+      verticalAlign: 'top',
+      padding: '16px',
+      backgroundColor: 'transparent',
+    },
+  }));
+
+  return {
+    id: crypto.randomUUID(),
+    type: 'row',
+    layout,
+    columns,
+    settings: {
+      backgroundColor: 'transparent',
+      backgroundImage: '',
+      backgroundOverlay: '',
+      padding: '24px 16px',
+      margin: '0',
+      minHeight: '',
+      maxWidth: 'boxed',
+      verticalAlign: 'top',
+      gap: '16px',
+    },
+  };
+};
+
+// Create a new widget from template
+export const createWidget = (type: WidgetType): Widget => {
+  const template = WIDGET_TEMPLATES[type];
+  return {
+    id: crypto.randomUUID(),
+    type,
+    settings: { ...template.settings },
+  };
+};
+
+// Legacy section templates (for backward compatibility)
 export const SECTION_TEMPLATES: Record<SectionType, Partial<Section>> = {
   'hero-product': {
     type: 'hero-product',
