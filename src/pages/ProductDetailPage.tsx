@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ProductCard from '@/components/products/ProductCard';
 import { fetchProductBySlug, fetchProducts } from '@/services/productService';
 import { Product } from '@/types';
@@ -210,14 +211,14 @@ const ProductDetailPage = () => {
               )}
             </div>
 
-            {/* Thumbnails */}
+            {/* Thumbnails - Horizontal Scroll Gallery */}
             {product.images.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {product.images.map((image, index) => (
                   <button
                     key={index}
                     onClick={() => setSelectedImage(index)}
-                    className={`flex-shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 transition-all ${
+                    className={`flex-shrink-0 w-20 h-20 rounded-md overflow-hidden border-2 transition-all ${
                       selectedImage === index 
                         ? 'border-primary ring-2 ring-primary/20' 
                         : 'border-border hover:border-muted-foreground'
@@ -314,22 +315,20 @@ const ProductDetailPage = () => {
               <span className="font-semibold">14,360+ Happy Customers</span>
             </div>
 
-            {/* Description / Features */}
-            {product.description && (
-              <div className="space-y-3">
-                <p className="font-semibold text-foreground">{product.description}</p>
-                <div className="text-sm text-muted-foreground space-y-1.5">
-                  <p className="font-medium text-foreground">Features:</p>
-                  <ul className="space-y-1 list-none">
-                    <li>- Premium quality material</li>
-                    <li>- Comfortable and stylish fit</li>
-                    <li>- Easy care and maintenance</li>
-                    <li>- Available in multiple sizes</li>
-                    <li>- Perfect for all occasions</li>
-                  </ul>
-                </div>
+            {/* Short Description / Features */}
+            <div className="space-y-3">
+              <p className="font-semibold text-foreground">{product.description}</p>
+              <div className="text-sm text-muted-foreground space-y-1.5">
+                <p className="font-medium text-foreground">Features:</p>
+                <ul className="space-y-1 list-none">
+                  <li>- Premium quality material</li>
+                  <li>- Comfortable and stylish fit</li>
+                  <li>- Easy care and maintenance</li>
+                  <li>- Available in multiple sizes</li>
+                  <li>- Perfect for all occasions</li>
+                </ul>
               </div>
-            )}
+            </div>
 
             {/* Quantity Selector */}
             <div className="flex items-center gap-4 pt-2 border-t border-border">
@@ -410,24 +409,75 @@ const ProductDetailPage = () => {
                 বিকাশ পেমেন্ট নাম্বার: <span className="font-medium text-foreground">01820-808514</span>
               </p>
             </div>
-
-            {/* Tags */}
-            {product.tags && product.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 pt-2">
-                <span className="text-sm text-muted-foreground">Tags:</span>
-                {product.tags.map((tag) => (
-                  <Link
-                    key={tag}
-                    to={`/products?search=${tag}`}
-                    className="text-sm text-primary hover:underline"
-                  >
-                    #{tag}
-                  </Link>
-                ))}
-              </div>
-            )}
           </motion.div>
         </div>
+
+        {/* Product Description Tabs */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+          className="mt-12"
+        >
+          <Tabs defaultValue="description" className="w-full">
+            <TabsList className="w-full justify-start border-b border-border rounded-none bg-transparent h-auto p-0 mb-6">
+              <TabsTrigger 
+                value="description" 
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-6 py-3 text-base font-medium text-muted-foreground data-[state=active]:text-primary"
+              >
+                পন্যের বিবরণ
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="description" className="mt-0">
+              <div className="border-l-4 border-amber-500 bg-amber-50 dark:bg-amber-950/20 rounded-r-lg p-6">
+                {/* Main Description */}
+                <h3 className="font-bold text-foreground text-lg mb-3">
+                  {product.description || `Premium ${product.category} with a stylish design`}
+                </h3>
+                <p className="text-muted-foreground mb-6">
+                  The stretchable fabric's casual style is emphasized by the genuine garment-washed effects. 
+                  Because of the high-stretch fabric and premium construction, this product is a hit and is easy to wear all day.
+                </p>
+
+                {/* Features */}
+                <div className="mb-6">
+                  <h4 className="font-bold text-foreground mb-3">Features:</h4>
+                  <ul className="space-y-1.5 text-muted-foreground">
+                    <li>- Premium quality material, Mid Weight</li>
+                    <li>- Stretchable and Extra-soft to the touch</li>
+                    <li>- High quality stitching & finishing</li>
+                    <li>- Comfortable design with attention to detail</li>
+                    <li>- Premium embroidery/print finishing</li>
+                    <li>- Perfect fit, excellent stretch, and recovery to the body yet still easy to wear</li>
+                    <li>- Will Not Shrink</li>
+                    <li>- Premium branding</li>
+                  </ul>
+                </div>
+
+                {/* Composition */}
+                <div className="mb-6">
+                  <h4 className="font-bold text-foreground mb-3">Composition</h4>
+                  <ul className="space-y-1.5 text-muted-foreground">
+                    <li>- Materials: Premium quality fabric</li>
+                    <li>- Pre-Shrunk and color-fast</li>
+                    <li>- Professional finishing</li>
+                  </ul>
+                </div>
+
+                {/* Care Instructions */}
+                <div>
+                  <h4 className="font-bold text-foreground mb-3">Care</h4>
+                  <ul className="space-y-1.5 text-muted-foreground">
+                    <li>- Machine wash in cold (30°C) water</li>
+                    <li>- Dry: Do Not Tumble Dry</li>
+                    <li>- Bleach: Do Not Bleach</li>
+                  </ul>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </motion.div>
 
         {/* Related Products */}
         {relatedProducts.length > 0 && (
