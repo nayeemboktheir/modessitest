@@ -1,18 +1,17 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Heart, 
   ShoppingCart, 
-  Star, 
   Minus, 
   Plus, 
-  Truck, 
-  Shield, 
-  RotateCcw,
   ChevronLeft,
   ChevronRight,
-  Loader2
+  Loader2,
+  Phone,
+  MessageCircle,
+  CheckCircle2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +26,7 @@ import { useFacebookPixel } from '@/hooks/useFacebookPixel';
 
 const ProductDetailPage = () => {
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [product, setProduct] = useState<Product | null>(null);
@@ -102,6 +102,7 @@ const ProductDetailPage = () => {
   }
 
   const formatPrice = (price: number) => `৳${price.toLocaleString('en-BD')}`;
+  const discountAmount = product.originalPrice ? product.originalPrice - product.price : 0;
 
   const handleAddToCart = () => {
     dispatch(addToCart({ product, quantity }));
@@ -120,25 +121,56 @@ const ProductDetailPage = () => {
     toast.success('Added to cart!');
   };
 
+  const handleBuyNow = () => {
+    dispatch(addToCart({ product, quantity }));
+    
+    // Track AddToCart event
+    trackAddToCart({
+      content_ids: [product.id],
+      content_name: product.name,
+      content_type: 'product',
+      value: product.price * quantity,
+      currency: 'BDT',
+    });
+    
+    navigate('/checkout');
+  };
+
   const handleToggleWishlist = () => {
     dispatch(toggleWishlist(product));
     toast.success(isInWishlist ? 'Removed from wishlist' : 'Added to wishlist!');
   };
 
+  const handleCallNow = () => {
+    window.location.href = 'tel:01820-808514';
+  };
+
+  const handleMessenger = () => {
+    const message = encodeURIComponent(
+      `Hi. I Want To Buy ${product.name} | Quantity: ${quantity} | Price: ৳${product.price * quantity} | ${window.location.href}`
+    );
+    window.open(`https://m.me/your-page-name/?text=${message}`, '_blank');
+  };
+
   return (
-    <div className="min-h-screen pt-40 pb-16 bg-background">
+    <div className="min-h-screen pt-32 pb-16 bg-background">
       <div className="container-custom">
         {/* Breadcrumb */}
-        <nav className="mb-8 text-sm">
+        <nav className="mb-6 text-sm">
           <ol className="flex items-center gap-2 text-muted-foreground">
-            <li><Link to="/" className="hover:text-primary">Home</Link></li>
-            <li>/</li>
-            <li><Link to="/products" className="hover:text-primary">Products</Link></li>
-            <li>/</li>
-            <li><Link to={`/products?category=${product.category.toLowerCase()}`} className="hover:text-primary">{product.category}</Link></li>
-            <li>/</li>
-            <li className="text-foreground font-medium truncate max-w-[200px]">{product.name}</li>
+            <li><Link to="/" className="hover:text-primary transition-colors">Home</Link></li>
+            <li className="text-muted-foreground/50">›</li>
+            <li><Link to="/products" className="hover:text-primary transition-colors">Products</Link></li>
+            <li className="text-muted-foreground/50">›</li>
+            <li className="text-foreground truncate max-w-[200px]">{product.name}</li>
           </ol>
+          <Link 
+            to="/" 
+            className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary mt-2 text-sm transition-colors"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Back To Home
+          </Link>
         </nav>
 
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
@@ -148,18 +180,12 @@ const ProductDetailPage = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="relative aspect-square rounded-2xl overflow-hidden bg-muted mb-4">
+            <div className="relative aspect-square rounded-lg overflow-hidden bg-muted mb-4 border border-border">
               <img
                 src={product.images[selectedImage]}
                 alt={product.name}
                 className="w-full h-full object-cover"
               />
-
-              {/* Badges */}
-              <div className="absolute top-4 left-4 flex flex-col gap-2">
-                {product.isNew && <Badge variant="new">New</Badge>}
-                {product.discount && <Badge variant="sale">-{product.discount}%</Badge>}
-              </div>
 
               {/* Navigation Arrows */}
               {product.images.length > 1 && (
@@ -168,7 +194,7 @@ const ProductDetailPage = () => {
                     onClick={() => setSelectedImage((prev) => 
                       prev === 0 ? product.images.length - 1 : prev - 1
                     )}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center hover:bg-background transition-colors"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center hover:bg-background transition-colors shadow-md"
                   >
                     <ChevronLeft className="h-5 w-5" />
                   </button>
@@ -176,7 +202,7 @@ const ProductDetailPage = () => {
                     onClick={() => setSelectedImage((prev) => 
                       prev === product.images.length - 1 ? 0 : prev + 1
                     )}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center hover:bg-background transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center hover:bg-background transition-colors shadow-md"
                   >
                     <ChevronRight className="h-5 w-5" />
                   </button>
@@ -186,13 +212,15 @@ const ProductDetailPage = () => {
 
             {/* Thumbnails */}
             {product.images.length > 1 && (
-              <div className="flex gap-3">
+              <div className="flex gap-2 overflow-x-auto pb-2">
                 {product.images.map((image, index) => (
                   <button
                     key={index}
                     onClick={() => setSelectedImage(index)}
-                    className={`w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors ${
-                      selectedImage === index ? 'border-primary' : 'border-transparent'
+                    className={`flex-shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 transition-all ${
+                      selectedImage === index 
+                        ? 'border-primary ring-2 ring-primary/20' 
+                        : 'border-border hover:border-muted-foreground'
                     }`}
                   >
                     <img
@@ -211,82 +239,115 @@ const ProductDetailPage = () => {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="space-y-6"
+            className="space-y-5"
           >
-            {/* Category */}
-            <p className="text-sm text-muted-foreground uppercase tracking-wide">
-              {product.category}
-            </p>
-
-            {/* Name */}
-            <h1 className="text-3xl md:text-4xl font-display font-bold text-foreground">
-              {product.name}
-            </h1>
-
-            {/* Rating */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center">
-                {[...Array(5)].map((_, i) => (
-                  <Star
-                    key={i}
-                    className={`h-5 w-5 ${
-                      i < Math.floor(product.rating)
-                        ? 'text-accent fill-accent'
-                        : 'text-muted-foreground/30'
-                    }`}
-                  />
-                ))}
-              </div>
-              <span className="text-muted-foreground">
-                {product.rating} ({product.reviewCount} reviews)
-              </span>
+            {/* Title with Share Icons */}
+            <div className="flex items-start justify-between gap-4">
+              <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground leading-tight">
+                {product.name}
+              </h1>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={handleToggleWishlist}
+                className={`flex-shrink-0 ${isInWishlist ? 'text-secondary' : 'text-muted-foreground hover:text-secondary'}`}
+              >
+                <Heart className={`h-5 w-5 ${isInWishlist ? 'fill-current' : ''}`} />
+              </Button>
             </div>
 
-            {/* Price */}
-            <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-bold text-primary">
+            {/* SKU */}
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium">SKU:</span> {product.id.slice(0, 8).toUpperCase()}
+            </p>
+
+            {/* Price Section */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-sm font-medium text-muted-foreground">PRICE:</span>
+              <span className="text-2xl font-bold text-foreground">
                 {formatPrice(product.price)}
               </span>
               {product.originalPrice && (
-                <span className="text-xl text-muted-foreground line-through">
-                  {formatPrice(product.originalPrice)}
-                </span>
-              )}
-              {product.discount && (
-                <Badge variant="sale" className="text-sm">
-                  Save {product.discount}%
-                </Badge>
+                <>
+                  <span className="text-lg text-muted-foreground line-through">
+                    {formatPrice(product.originalPrice)}
+                  </span>
+                  <Badge className="bg-amber-500 hover:bg-amber-600 text-white border-0">
+                    {discountAmount} ৳ off
+                  </Badge>
+                </>
               )}
             </div>
 
-            {/* Description */}
-            <p className="text-muted-foreground leading-relaxed">
-              {product.description}
-            </p>
+            {/* Size Selector (if tags include sizes) */}
+            {product.tags && product.tags.some(tag => ['S', 'M', 'L', 'XL', 'XXL', '28', '30', '32', '34', '36'].includes(tag)) && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">
+                  Select Size: <span className="text-primary">{product.tags.find(tag => ['S', 'M', 'L', 'XL', 'XXL', '28', '30', '32', '34', '36'].includes(tag))}</span>
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {product.tags
+                    .filter(tag => ['S', 'M', 'L', 'XL', 'XXL', '28', '30', '32', '34', '36'].includes(tag))
+                    .map((size) => (
+                      <button
+                        key={size}
+                        className="px-4 py-2 border-2 border-primary rounded-md text-sm font-medium text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
+                      >
+                        {size}
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
 
             {/* Stock Status */}
             <div className="flex items-center gap-2">
-              <span className={`w-3 h-3 rounded-full ${product.stock > 0 ? 'bg-primary' : 'bg-destructive'}`} />
-              <span className={product.stock > 0 ? 'text-primary' : 'text-destructive'}>
-                {product.stock > 0 ? `In Stock (${product.stock} available)` : 'Out of Stock'}
+              <span className="text-sm font-medium text-muted-foreground">STATUS:</span>
+              <span className={`font-bold ${product.stock > 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+                {product.stock > 0 ? 'In Stock' : 'Out of Stock'}
               </span>
             </div>
 
+            {/* Happy Customers Badge */}
+            <div className="flex items-center gap-2 text-sm">
+              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+              <span className="font-semibold">14,360+ Happy Customers</span>
+            </div>
+
+            {/* Description / Features */}
+            {product.description && (
+              <div className="space-y-3">
+                <p className="font-semibold text-foreground">{product.description}</p>
+                <div className="text-sm text-muted-foreground space-y-1.5">
+                  <p className="font-medium text-foreground">Features:</p>
+                  <ul className="space-y-1 list-none">
+                    <li>- Premium quality material</li>
+                    <li>- Comfortable and stylish fit</li>
+                    <li>- Easy care and maintenance</li>
+                    <li>- Available in multiple sizes</li>
+                    <li>- Perfect for all occasions</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+
             {/* Quantity Selector */}
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-medium text-foreground">Quantity:</span>
-              <div className="flex items-center border border-border rounded-lg">
+            <div className="flex items-center gap-4 pt-2 border-t border-border">
+              <span className="text-sm font-bold text-foreground uppercase">Quantity</span>
+              <div className="flex items-center border border-border rounded-md overflow-hidden">
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="p-3 hover:bg-muted transition-colors"
+                  className="px-3 py-2 hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
                   disabled={quantity <= 1}
                 >
                   <Minus className="h-4 w-4" />
                 </button>
-                <span className="w-12 text-center font-medium">{quantity}</span>
+                <span className="w-12 text-center font-medium text-foreground py-2 border-x border-border">
+                  {quantity}
+                </span>
                 <button
                   onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                  className="p-3 hover:bg-muted transition-colors"
+                  className="px-3 py-2 hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
                   disabled={quantity >= product.stock}
                 >
                   <Plus className="h-4 w-4" />
@@ -295,55 +356,64 @@ const ProductDetailPage = () => {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-4">
+            <div className="grid grid-cols-2 gap-3 pt-2">
               <Button 
-                variant="cta" 
-                size="xl" 
-                className="flex-1"
+                variant="outline"
+                size="lg" 
+                className="w-full font-semibold"
                 onClick={handleAddToCart}
                 disabled={product.stock === 0}
               >
-                <ShoppingCart className="h-5 w-5 mr-2" />
+                <ShoppingCart className="h-4 w-4 mr-2" />
                 Add to Cart
               </Button>
               <Button 
-                variant="outline" 
-                size="xl"
-                onClick={handleToggleWishlist}
-                className={isInWishlist ? 'text-secondary border-secondary' : ''}
+                size="lg" 
+                className="w-full bg-foreground text-background hover:bg-foreground/90 font-semibold"
+                onClick={handleBuyNow}
+                disabled={product.stock === 0}
               >
-                <Heart className={`h-5 w-5 ${isInWishlist ? 'fill-current' : ''}`} />
+                Buy Now
               </Button>
             </div>
 
-            {/* Features */}
-            <div className="grid grid-cols-3 gap-4 pt-6 border-t border-border">
-              <div className="text-center">
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-2">
-                  <Truck className="h-6 w-6 text-primary" />
-                </div>
-                <p className="text-sm font-medium text-foreground">Free Shipping</p>
-                <p className="text-xs text-muted-foreground">On orders ৳2000+</p>
-              </div>
-              <div className="text-center">
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-2">
-                  <Shield className="h-6 w-6 text-primary" />
-                </div>
-                <p className="text-sm font-medium text-foreground">Secure Payment</p>
-                <p className="text-xs text-muted-foreground">100% Protected</p>
-              </div>
-              <div className="text-center">
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-2">
-                  <RotateCcw className="h-6 w-6 text-primary" />
-                </div>
-                <p className="text-sm font-medium text-foreground">Easy Returns</p>
-                <p className="text-xs text-muted-foreground">30 Day Policy</p>
-              </div>
+            {/* Call Now Button */}
+            <Button 
+              variant="outline"
+              size="lg" 
+              className="w-full bg-amber-500 hover:bg-amber-600 text-white border-0 font-semibold"
+              onClick={handleCallNow}
+            >
+              <Phone className="h-4 w-4 mr-2" />
+              Call Now: 01820-808514
+            </Button>
+
+            {/* Messenger Button */}
+            <Button 
+              variant="outline"
+              size="lg" 
+              className="w-full bg-background border-2 border-foreground hover:bg-muted font-semibold"
+              onClick={handleMessenger}
+            >
+              <MessageCircle className="h-4 w-4 mr-2" />
+              ম্যাসেঞ্জার অর্ডার
+            </Button>
+
+            {/* Delivery Notice */}
+            <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground border border-border">
+              <p>
+                ডেলিভারি চার্জ এডভান্স পে করে অর্ডার কনফার্ম করতে হবে। 
+                <span className="font-medium text-foreground"> "ঢাকার মধ্যে ৮০ টাকা" </span>
+                <span className="font-medium text-foreground">"ঢাকার বাইরে ১৩০ টাকা।"</span>
+              </p>
+              <p className="mt-2">
+                বিকাশ পেমেন্ট নাম্বার: <span className="font-medium text-foreground">01820-808514</span>
+              </p>
             </div>
 
             {/* Tags */}
             {product.tags && product.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 pt-4">
+              <div className="flex flex-wrap gap-2 pt-2">
                 <span className="text-sm text-muted-foreground">Tags:</span>
                 {product.tags.map((tag) => (
                   <Link
@@ -366,8 +436,8 @@ const ProductDetailPage = () => {
               Related Products
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-              {relatedProducts.map((product, index) => (
-                <ProductCard key={product.id} product={product} index={index} />
+              {relatedProducts.map((relatedProduct, index) => (
+                <ProductCard key={relatedProduct.id} product={relatedProduct} index={index} />
               ))}
             </div>
           </section>
