@@ -64,6 +64,9 @@ export const createProduct = async (product: {
   is_featured?: boolean;
   is_new?: boolean;
   is_active?: boolean;
+  features?: string;
+  composition?: string;
+  care_instructions?: string;
 }) => {
   const { data, error } = await supabase
     .from('products')
@@ -88,6 +91,9 @@ export const updateProduct = async (id: string, updates: Partial<{
   is_featured: boolean;
   is_new: boolean;
   is_active: boolean;
+  features: string;
+  composition: string;
+  care_instructions: string;
 }>) => {
   const { data, error } = await supabase
     .from('products')

@@ -110,5 +110,8 @@ const mapProductFromDB = (data: any): Product => {
     isNew: data.is_new || false,
     discount: discount,
     tags: data.tags || [],
+    features: data.features || undefined,
+    composition: data.composition || undefined,
+    careInstructions: data.care_instructions || undefined,
   };
 };

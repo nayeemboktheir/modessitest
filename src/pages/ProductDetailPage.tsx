@@ -444,14 +444,22 @@ const ProductDetailPage = () => {
                 <div className="mb-6">
                   <h4 className="font-bold text-foreground mb-3">Features:</h4>
                   <ul className="space-y-1.5 text-muted-foreground">
-                    <li>- Premium quality material, Mid Weight</li>
-                    <li>- Stretchable and Extra-soft to the touch</li>
-                    <li>- High quality stitching & finishing</li>
-                    <li>- Comfortable design with attention to detail</li>
-                    <li>- Premium embroidery/print finishing</li>
-                    <li>- Perfect fit, excellent stretch, and recovery to the body yet still easy to wear</li>
-                    <li>- Will Not Shrink</li>
-                    <li>- Premium branding</li>
+                    {product.features ? (
+                      product.features.split('\n').map((line, idx) => (
+                        <li key={idx}>{line.startsWith('-') ? line : `- ${line}`}</li>
+                      ))
+                    ) : (
+                      <>
+                        <li>- Premium quality material, Mid Weight</li>
+                        <li>- Stretchable and Extra-soft to the touch</li>
+                        <li>- High quality stitching & finishing</li>
+                        <li>- Comfortable design with attention to detail</li>
+                        <li>- Premium embroidery/print finishing</li>
+                        <li>- Perfect fit, excellent stretch, and recovery to the body yet still easy to wear</li>
+                        <li>- Will Not Shrink</li>
+                        <li>- Premium branding</li>
+                      </>
+                    )}
                   </ul>
                 </div>
 
@@ -459,9 +467,17 @@ const ProductDetailPage = () => {
                 <div className="mb-6">
                   <h4 className="font-bold text-foreground mb-3">Composition</h4>
                   <ul className="space-y-1.5 text-muted-foreground">
-                    <li>- Materials: Premium quality fabric</li>
-                    <li>- Pre-Shrunk and color-fast</li>
-                    <li>- Professional finishing</li>
+                    {product.composition ? (
+                      product.composition.split('\n').map((line, idx) => (
+                        <li key={idx}>{line.startsWith('-') ? line : `- ${line}`}</li>
+                      ))
+                    ) : (
+                      <>
+                        <li>- Materials: Premium quality fabric</li>
+                        <li>- Pre-Shrunk and color-fast</li>
+                        <li>- Professional finishing</li>
+                      </>
+                    )}
                   </ul>
                 </div>
 
@@ -469,9 +485,17 @@ const ProductDetailPage = () => {
                 <div>
                   <h4 className="font-bold text-foreground mb-3">Care</h4>
                   <ul className="space-y-1.5 text-muted-foreground">
-                    <li>- Machine wash in cold (30°C) water</li>
-                    <li>- Dry: Do Not Tumble Dry</li>
-                    <li>- Bleach: Do Not Bleach</li>
+                    {product.careInstructions ? (
+                      product.careInstructions.split('\n').map((line, idx) => (
+                        <li key={idx}>{line.startsWith('-') ? line : `- ${line}`}</li>
+                      ))
+                    ) : (
+                      <>
+                        <li>- Machine wash in cold (30°C) water</li>
+                        <li>- Dry: Do Not Tumble Dry</li>
+                        <li>- Bleach: Do Not Bleach</li>
+                      </>
+                    )}
                   </ul>
                 </div>
               </div>

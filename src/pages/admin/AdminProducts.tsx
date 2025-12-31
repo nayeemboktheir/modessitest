@@ -53,6 +53,9 @@ interface Product {
   is_featured: boolean | null;
   is_new: boolean | null;
   is_active: boolean | null;
+  features: string | null;
+  composition: string | null;
+  care_instructions: string | null;
   categories?: { id: string; name: string } | null;
 }
 
@@ -74,6 +77,9 @@ const initialFormState = {
   is_featured: false,
   is_new: false,
   is_active: true,
+  features: '',
+  composition: '',
+  care_instructions: '',
 };
 
 export default function AdminProducts() {
@@ -130,6 +136,9 @@ export default function AdminProducts() {
       is_featured: product.is_featured || false,
       is_new: product.is_new || false,
       is_active: product.is_active ?? true,
+      features: product.features || '',
+      composition: product.composition || '',
+      care_instructions: product.care_instructions || '',
     });
     setIsDialogOpen(true);
   };
@@ -152,6 +161,9 @@ export default function AdminProducts() {
         is_featured: formData.is_featured,
         is_new: formData.is_new,
         is_active: formData.is_active,
+        features: formData.features || undefined,
+        composition: formData.composition || undefined,
+        care_instructions: formData.care_instructions || undefined,
       };
 
       if (editingProduct) {
@@ -326,6 +338,46 @@ export default function AdminProducts() {
                   onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
                   placeholder="electronics, gadgets, new"
                 />
+              </div>
+
+              {/* Product Description Fields */}
+              <div className="border-t pt-4 mt-4">
+                <h3 className="font-medium mb-3">Product Details (for description tab)</h3>
+                
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="features">Features</Label>
+                    <Textarea
+                      id="features"
+                      value={formData.features}
+                      onChange={(e) => setFormData({ ...formData, features: e.target.value })}
+                      rows={4}
+                      placeholder="Enter each feature on a new line, e.g:&#10;- Premium quality material&#10;- Comfortable fit&#10;- Easy care"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="composition">Composition</Label>
+                    <Textarea
+                      id="composition"
+                      value={formData.composition}
+                      onChange={(e) => setFormData({ ...formData, composition: e.target.value })}
+                      rows={3}
+                      placeholder="Enter composition details, e.g:&#10;- Materials: 100% Cotton&#10;- Pre-shrunk and color-fast"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="care_instructions">Care Instructions</Label>
+                    <Textarea
+                      id="care_instructions"
+                      value={formData.care_instructions}
+                      onChange={(e) => setFormData({ ...formData, care_instructions: e.target.value })}
+                      rows={3}
+                      placeholder="Enter care instructions, e.g:&#10;- Machine wash cold&#10;- Do not bleach&#10;- Tumble dry low"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="flex gap-6">
