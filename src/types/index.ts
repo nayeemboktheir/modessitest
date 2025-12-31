@@ -15,6 +15,9 @@ export interface Product {
   isNew?: boolean;
   discount?: number;
   tags?: string[];
+  features?: string;
+  composition?: string;
+  careInstructions?: string;
 }
 
 export interface Category {
